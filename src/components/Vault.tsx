@@ -534,8 +534,8 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
             <input type="text" placeholder="Username / Email" value={pwUsername} onChange={(e) => setPwUsername(e.target.value)} style={{ padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-surface)' }} />
             
             <div style={{ display: 'flex', gap: '10px' }}>
-              <input type="text" placeholder="Password" value={pwPassword} onChange={(e) => setPwPassword(e.target.value)} style={{ flexGrow: 1, padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-surface)' }} />
-              <button className="btn-secondary" onClick={handleGeneratePassword}>⚡ Generate</button>
+              <input type="text" placeholder="Password" value={pwPassword} onChange={(e) => setPwPassword(e.target.value)} style={{ flexGrow: 1, minWidth: 0, padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-surface)' }} />
+              <button className="btn-secondary" onClick={handleGeneratePassword} style={{ whiteSpace: 'nowrap' }}>⚡ Generate</button>
             </div>
             
             <input type="text" placeholder="URL" value={pwUrl} onChange={(e) => setPwUrl(e.target.value)} style={{ padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-surface)' }} />

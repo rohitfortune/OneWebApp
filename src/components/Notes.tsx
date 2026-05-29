@@ -210,62 +210,7 @@ export default function Notes() {
     }
   };
 
-  // Helper to insert HTML block at caret/cursor position
-  const insertHtmlAtCursor = (html: string) => {
-    if (!editorRef.current) return;
-    editorRef.current.focus();
 
-    const sel = window.getSelection();
-    let range: Range | null = null;
-
-    if (lastActiveNodeRef.current && lastActiveNodeRef.current.isConnected && editorRef.current.contains(lastActiveNodeRef.current)) {
-      range = document.createRange();
-      try {
-        range.setStart(lastActiveNodeRef.current, lastActiveOffsetRef.current);
-        range.collapse(true);
-      } catch (e) {
-        range = null;
-      }
-    }
-
-    if (!range && sel && sel.rangeCount > 0 && editorRef.current.contains(sel.anchorNode)) {
-      range = sel.getRangeAt(0);
-    }
-
-    if (!range) {
-      range = document.createRange();
-      range.selectNodeContents(editorRef.current);
-      range.collapse(false);
-    }
-
-    const frag = range.createContextualFragment(html);
-    const lastNode = frag.lastChild;
-    range.insertNode(frag);
-
-    if (lastNode && sel) {
-      const newRange = document.createRange();
-      newRange.setStartAfter(lastNode);
-      newRange.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-      
-      lastActiveNodeRef.current = newRange.startContainer;
-      lastActiveOffsetRef.current = newRange.startOffset;
-    }
-
-    const newContent = editorRef.current.innerHTML;
-    setContent(newContent);
-
-    // Wrap and pad media elements
-    processEditorMedia();
-
-    if (selectedNote) {
-      db.notes.update(selectedNote.id!, {
-        content: newContent,
-        lastModified: Date.now()
-      });
-    }
-  };
 
   // Insert a media/file block as a direct child of the editor, always on its own line.
   // Finds the block currently containing the cursor and inserts the media after it,
@@ -332,12 +277,6 @@ export default function Notes() {
     }
   };
 
-  // Web-native playable video MIME types
-  const PLAYABLE_VIDEO_TYPES = [
-    'video/mp4', 'video/webm', 'video/ogg',
-    'video/x-matroska', // mkv — some browsers
-    'video/quicktime',  // .mov plays natively in Safari
-  ];
 
   // Check if a video can actually be played by the current browser
   const isVideoPlayable = (file: File): boolean => {
@@ -911,7 +850,7 @@ export default function Notes() {
           }
 
           // Move up: the offset into the parent is the child index of current
-          const parent = current.parentNode;
+          const parent: Node | null = current.parentNode;
           if (parent) {
             const children = Array.from(parent.childNodes);
             offset = children.indexOf(current as ChildNode);

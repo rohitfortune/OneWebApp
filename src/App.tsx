@@ -3,8 +3,10 @@ import Notes from './components/Notes';
 import Vault from './components/Vault';
 import Files from './components/Files';
 import Settings from './components/Settings';
+import GoogleDrive from './components/GoogleDrive';
+import OneDrive from './components/OneDrive';
 
-type ActiveTab = 'notes' | 'vault' | 'files' | 'settings';
+type ActiveTab = 'notes' | 'vault' | 'files' | 'settings' | 'gdrive' | 'onedrive';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('notes');
@@ -34,6 +36,10 @@ export default function App() {
         return <Files />;
       case 'settings':
         return <Settings />;
+      case 'gdrive':
+        return <GoogleDrive />;
+      case 'onedrive':
+        return <OneDrive />;
       default:
         return <Notes />;
     }
@@ -49,6 +55,10 @@ export default function App() {
         return 'Files';
       case 'settings':
         return 'Suite Settings & Backups';
+      case 'gdrive':
+        return 'Google Drive Explorer';
+      case 'onedrive':
+        return 'Microsoft OneDrive';
       default:
         return 'One';
     }
@@ -91,6 +101,22 @@ export default function App() {
           >
             <span className="nav-icon">📂</span>
             <span>Files</span>
+          </button>
+
+          <button 
+            className={`nav-item ${activeTab === 'gdrive' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('gdrive'); setIsMobileMenuOpen(false); }}
+          >
+            <span className="nav-icon">☁️</span>
+            <span>Google Drive</span>
+          </button>
+
+          <button 
+            className={`nav-item ${activeTab === 'onedrive' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('onedrive'); setIsMobileMenuOpen(false); }}
+          >
+            <span className="nav-icon">☁️</span>
+            <span>OneDrive</span>
           </button>
 
           <button 

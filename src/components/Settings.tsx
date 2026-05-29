@@ -351,9 +351,9 @@ export default function Settings() {
             <button className="btn-secondary" onClick={handleDisableBiometrics} style={{ color: '#ef4444', borderColor: '#fca5a5' }}>Disable Biometrics</button>
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', maxWidth: '440px' }}>
-            <input type="text" placeholder="Username / Alias" value={bioUsername} onChange={(e) => setBioUsername(e.target.value)} style={{ flexGrow: 1, padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-base)' }} />
-            <button className="btn-primary" onClick={handleEnrollBiometrics}>Register Fingerprint / Face</button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', maxWidth: '440px', flexWrap: 'wrap' }}>
+            <input type="text" placeholder="Username / Alias" value={bioUsername} onChange={(e) => setBioUsername(e.target.value)} style={{ flexGrow: 1, minWidth: '150px', padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-base)' }} />
+            <button className="btn-primary" onClick={handleEnrollBiometrics} style={{ flexGrow: 1 }}>Register Fingerprint / Face</button>
           </div>
         )}
       </div>

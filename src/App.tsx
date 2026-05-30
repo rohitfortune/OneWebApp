@@ -145,7 +145,7 @@ export default function App() {
       case 'onedrive':
         return 'Microsoft OneDrive';
       default:
-        return 'One';
+        return 'One Web';
     }
   };
 
@@ -186,7 +186,7 @@ export default function App() {
       <aside className={`app-sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="brand-section">
           <img src={logoImg} alt="One Logo" className="brand-logo-img" />
-          <span className="brand-name">One</span>
+          <span className="brand-name">One Web</span>
         </div>
 
         <nav className="navigation-menu">
@@ -251,8 +251,9 @@ export default function App() {
           <div className="sync-pill synced">
             <span>🟢</span> Synced Locally
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textAlign: 'center' }}>
-            One Web v1.0.0 (Offline)
+          <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>One Web v1.0.0 (Offline)</span>
+            <a href="/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>One Web Privacy Policy</a>
           </div>
         </div>
       </aside>

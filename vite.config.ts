@@ -12,7 +12,7 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'One Web Productivity & Cryptography Suite',
-        short_name: 'One',
+        short_name: 'One Web',
         description: 'Secure, offline-first notes, vault, files, and backing-up application',
         theme_color: '#ff6c00',
         icons: [

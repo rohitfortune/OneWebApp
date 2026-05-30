@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type PasswordRecord, type CreditCardRecord } from '../db/db';
 import { 
@@ -417,6 +418,18 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
 
   return (
     <div style={{ height: 'calc(100vh - 160px)' }}>
+      {/* Portal the Lock Button to the top header banner */}
+      {document.getElementById('header-actions') && createPortal(
+        <button 
+          className="btn-secondary" 
+          onClick={handleLockVault} 
+          style={{ padding: '6px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', borderStyle: 'dashed', borderColor: 'var(--accent)', color: 'var(--accent)' }}
+        >
+          🔒 Lock Vault
+        </button>,
+        document.getElementById('header-actions')!
+      )}
+
       {/* Side Item list */}
       {!showDetailView && (
       <div className="vault-sidebar-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto', paddingBottom: '20px' }}>
@@ -508,10 +521,6 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
             <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '40px 0' }}>No cards</div>
           )}
         </div>
-
-        <button className="btn-secondary" onClick={handleLockVault} style={{ width: '100%', borderStyle: 'dashed', color: 'var(--accent)' }}>
-          🔒 Lock Secure Vault
-        </button>
       </div>
       )}
 

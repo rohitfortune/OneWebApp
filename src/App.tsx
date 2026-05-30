@@ -140,13 +140,14 @@ export default function App() {
 
       {/* Main Content Workspace */}
       <main className="app-content">
-        <header className="content-header">
-          <div className="header-left">
+        <header className="content-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
               ☰
             </button>
             <h1 className="header-title">{getScreenTitle()}</h1>
           </div>
+          <div id="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}></div>
         </header>
 
         {/* Dynamic Inner Panel */}

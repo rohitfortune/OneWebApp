@@ -12,7 +12,7 @@ import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 function GoogleBackupButton({ onBackup }: { onBackup: (token: string) => void }) {
   const login = useGoogleLogin({
     onSuccess: (codeResponse) => onBackup(codeResponse.access_token),
-    scope: 'https://www.googleapis.com/auth/drive.appdata',
+    scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.appdata',
     onError: (error) => alert('Login Failed: ' + error)
   });
 
@@ -26,7 +26,7 @@ function GoogleBackupButton({ onBackup }: { onBackup: (token: string) => void })
 function GoogleRestoreButton({ onRestore }: { onRestore: (token: string) => void }) {
   const login = useGoogleLogin({
     onSuccess: (codeResponse) => onRestore(codeResponse.access_token),
-    scope: 'https://www.googleapis.com/auth/drive.appdata',
+    scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.appdata',
     onError: (error) => alert('Login Failed: ' + error)
   });
 

@@ -150,7 +150,7 @@ function GoogleDriveExplorer({ accessToken }: { accessToken: string }) {
 function GoogleAuthWrapper({ onToken }: { onToken: (token: string) => void }) {
   const login = useGoogleLogin({
     onSuccess: (codeResponse) => onToken(codeResponse.access_token),
-    scope: 'https://www.googleapis.com/auth/drive',
+    scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.appdata',
     onError: (error) => alert('Login Failed: ' + error)
   });
 

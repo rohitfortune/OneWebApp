@@ -57,6 +57,9 @@ export default function Settings() {
   // Theme state
   const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system');
 
+  // Custom Modal State
+  const [modalMessage, setModalMessage] = useState('');
+
   const handleThemeChange = (newTheme: 'system' | 'light' | 'dark') => {
     setTheme(newTheme);
     localStorage.setItem('app-theme', newTheme);
@@ -273,7 +276,7 @@ export default function Settings() {
       });
       
       if (res.ok) {
-        alert('Encrypted secure backup successfully uploaded to your hidden Google Drive AppData folder!');
+        setModalMessage('Encrypted secure backup successfully uploaded to your hidden Google Drive AppData folder!');
       } else {
         alert('Upload failed: ' + await res.text());
       }
@@ -582,6 +585,32 @@ export default function Settings() {
           Wipe Local Database
         </button>
       </div>
+
+      {/* Central Success Modal */}
+      {modalMessage && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-surface)', padding: '40px 32px', borderRadius: 'var(--border-radius-lg)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.3)', maxWidth: '440px', textAlign: 'center',
+            display: 'flex', flexDirection: 'column', gap: '20px', border: '1px solid var(--border)',
+            animation: 'fadeIn 0.2s ease-out'
+          }}>
+            <div style={{ fontSize: '56px', lineHeight: 1 }}>✅</div>
+            <h3 style={{ fontFamily: 'var(--font-heading)', margin: 0, fontSize: '24px' }}>Success</h3>
+            <p style={{ color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6, fontSize: '15px' }}>
+              {modalMessage}
+            </p>
+            <button className="btn-primary" onClick={() => setModalMessage('')} style={{ marginTop: '16px', padding: '14px', fontSize: '16px' }}>
+              Awesome!
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

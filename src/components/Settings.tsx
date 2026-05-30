@@ -12,13 +12,27 @@ import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 function GoogleBackupButton({ onBackup }: { onBackup: (token: string) => void }) {
   const login = useGoogleLogin({
     onSuccess: (codeResponse) => onBackup(codeResponse.access_token),
-    scope: 'https://www.googleapis.com/auth/drive',
+    scope: 'https://www.googleapis.com/auth/drive.appdata',
     onError: (error) => alert('Login Failed: ' + error)
   });
 
   return (
     <button className="btn-secondary" onClick={() => login()}>
       ☁️ Backup to Google Drive
+    </button>
+  );
+}
+
+function GoogleRestoreButton({ onRestore }: { onRestore: (token: string) => void }) {
+  const login = useGoogleLogin({
+    onSuccess: (codeResponse) => onRestore(codeResponse.access_token),
+    scope: 'https://www.googleapis.com/auth/drive.appdata',
+    onError: (error) => alert('Login Failed: ' + error)
+  });
+
+  return (
+    <button className="btn-secondary" onClick={() => login()}>
+      ☁️ Restore from Google Drive
     </button>
   );
 }
@@ -247,7 +261,7 @@ export default function Settings() {
       const blob = new Blob([str], { type: 'application/json' });
       const filename = `one_backup_${new Date().toISOString().split('T')[0]}.one`;
 
-      const metadata = { name: filename, mimeType: 'application/json' };
+      const metadata = { name: filename, mimeType: 'application/json', parents: ['appDataFolder'] };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
       form.append('file', blob);
@@ -259,13 +273,79 @@ export default function Settings() {
       });
       
       if (res.ok) {
-        alert('Encrypted secure backup successfully uploaded to your Google Drive root folder!');
+        alert('Encrypted secure backup successfully uploaded to your hidden Google Drive AppData folder!');
       } else {
         alert('Upload failed: ' + await res.text());
       }
     } catch (e) {
       console.error(e);
       alert('Error uploading to Google Drive');
+    }
+  };
+
+  const handleRestoreFromGoogleDrive = async (accessToken: string) => {
+    try {
+      const listRes = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name contains "one_backup_"&orderBy=modifiedTime desc', {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const listData = await listRes.json();
+      
+      if (!listData.files || listData.files.length === 0) {
+        alert('No backup files found in your Google Drive AppData folder.');
+        return;
+      }
+      
+      const latestFile = listData.files[0];
+      
+      const downloadRes = await fetch(`https://www.googleapis.com/drive/v3/files/${latestFile.id}?alt=media`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      
+      if (!downloadRes.ok) {
+        alert('Failed to download the backup file.');
+        return;
+      }
+      
+      const data = await downloadRes.json();
+
+      if (data.version !== 1 || !data.vault) {
+        alert('Invalid backup file format');
+        return;
+      }
+
+      if (window.confirm('Importing this cloud backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
+        await db.notes.clear();
+        await db.passwords.clear();
+        await db.creditCards.clear();
+        await db.settings.clear();
+
+        await db.settings.put({ key: 'vault_salt', value: data.vault.salt });
+        await db.settings.put({ key: 'vault_verifier', value: data.vault.verifier });
+
+        for (const n of data.notes) {
+          await db.notes.add({
+            title: n.title,
+            content: n.content,
+            paths: n.paths,
+            pinned: n.pinned,
+            lastModified: Date.now()
+          });
+        }
+
+        for (const p of data.vault.passwords) {
+          await db.passwords.put(p);
+        }
+
+        for (const c of data.vault.cards) {
+          await db.creditCards.put(c);
+        }
+
+        alert('Cloud Backup successfully imported! Please refresh the page to reload settings.');
+        window.location.reload();
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error restoring from Google Drive');
     }
   };
 
@@ -440,7 +520,10 @@ export default function Settings() {
           
           {googleClientId && (
             <GoogleOAuthProvider clientId={googleClientId}>
-              <GoogleBackupButton onBackup={handleUploadToGoogleDrive} />
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <GoogleBackupButton onBackup={handleUploadToGoogleDrive} />
+                <GoogleRestoreButton onRestore={handleRestoreFromGoogleDrive} />
+              </div>
             </GoogleOAuthProvider>
           )}
 

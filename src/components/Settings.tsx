@@ -7,6 +7,21 @@ import {
   arrayBufferToBase64 
 } from '../utils/crypto';
 import { isBiometricsAvailable, enrollLocalBiometrics } from '../utils/biometrics';
+import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
+
+function GoogleBackupButton({ onBackup }: { onBackup: (token: string) => void }) {
+  const login = useGoogleLogin({
+    onSuccess: (codeResponse) => onBackup(codeResponse.access_token),
+    scope: 'https://www.googleapis.com/auth/drive',
+    onError: (error) => alert('Login Failed: ' + error)
+  });
+
+  return (
+    <button className="btn-secondary" onClick={() => login()}>
+      ☁️ Backup to Google Drive
+    </button>
+  );
+}
 
 export default function Settings() {
   const [hasPassword, setHasPassword] = useState(false);
@@ -198,6 +213,62 @@ export default function Settings() {
     alert('Encrypted secure backup successfully created and downloaded!');
   };
 
+  const handleUploadToGoogleDrive = async (accessToken: string) => {
+    try {
+      const saltRec = await db.settings.get('vault_salt');
+      const verifierRec = await db.settings.get('vault_verifier');
+      if (!saltRec || !verifierRec) {
+        alert('Please set up your master password vault before exporting.');
+        return;
+      }
+
+      const notes = await db.notes.toArray();
+      const passwords = await db.passwords.toArray();
+      const cards = await db.creditCards.toArray();
+
+      const backupBundle = {
+        version: 1,
+        createdAt: Date.now(),
+        vault: {
+          salt: saltRec.value,
+          verifier: verifierRec.value,
+          passwords,
+          cards
+        },
+        notes: notes.map(n => ({
+          title: n.title,
+          content: n.content,
+          paths: n.paths,
+          pinned: n.pinned
+        }))
+      };
+
+      const str = JSON.stringify(backupBundle, null, 2);
+      const blob = new Blob([str], { type: 'application/json' });
+      const filename = `one_backup_${new Date().toISOString().split('T')[0]}.one`;
+
+      const metadata = { name: filename, mimeType: 'application/json' };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', blob);
+
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: form
+      });
+      
+      if (res.ok) {
+        alert('Encrypted secure backup successfully uploaded to your Google Drive root folder!');
+      } else {
+        alert('Upload failed: ' + await res.text());
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error uploading to Google Drive');
+    }
+  };
+
   // Restore logic
   const handleUploadBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -364,9 +435,15 @@ export default function Settings() {
         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '640px' }}>
           Export a zero-knowledge, AES-256 encrypted archive containing your entire local notes, settings, credentials vault, and parameters to store anywhere.
         </p>
-        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
           <button className="btn-primary" onClick={handleDownloadBackup}>📥 Export Encrypted Backup</button>
           
+          {googleClientId && (
+            <GoogleOAuthProvider clientId={googleClientId}>
+              <GoogleBackupButton onBackup={handleUploadToGoogleDrive} />
+            </GoogleOAuthProvider>
+          )}
+
           <input type="file" id="backup-restore-input" accept=".one" onChange={handleUploadBackup} style={{ display: 'none' }} />
           <label htmlFor="backup-restore-input" className="btn-secondary" style={{ cursor: 'pointer' }}>
             📤 Restore from Backup File

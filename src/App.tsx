@@ -5,6 +5,7 @@ import Files from './components/Files';
 import Settings from './components/Settings';
 import GoogleDrive from './components/GoogleDrive';
 import OneDrive from './components/OneDrive';
+import logoImg from './assets/logo.jpg';
 import { db } from './db/db';
 import { deriveMasterKey, decryptPayload, base64ToArrayBuffer } from './utils/crypto';
 import { verifyLocalBiometrics } from './utils/biometrics';
@@ -184,7 +185,7 @@ export default function App() {
       {/* Navigation Sidebar */}
       <aside className={`app-sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="brand-section">
-          <img src="/logo.jpg" alt="One Logo" className="brand-logo-img" />
+          <img src={logoImg} alt="One Logo" className="brand-logo-img" />
           <span className="brand-name">One</span>
         </div>
 

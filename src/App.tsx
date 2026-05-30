@@ -253,7 +253,7 @@ export default function App() {
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span>One Web v1.0.0 (Offline)</span>
-            <a href="/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>One Web Privacy Policy</a>
+            <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>One Web Privacy Policy</a>
           </div>
         </div>
       </aside>

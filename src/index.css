@@ -138,6 +138,7 @@ button, input, textarea, select {
 .app-container {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   background-color: var(--bg-base);
   transition: all var(--transition-normal);
@@ -683,7 +684,8 @@ button, input, textarea, select {
     bottom: 0;
     width: 280px;
     height: 100vh;
-    padding: 24px;
+    height: 100dvh;
+    padding: 24px 24px 48px 24px;
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
@@ -706,6 +708,7 @@ button, input, textarea, select {
     left: 0;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     background: rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(2px);
     z-index: 150;
@@ -753,7 +756,7 @@ button, input, textarea, select {
   }
 
   .screen-wrapper {
-    padding: 16px;
+    padding: 16px 16px 48px 16px;
   }
 
   .grid-columns-2 {

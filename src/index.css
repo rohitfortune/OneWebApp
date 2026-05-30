@@ -805,9 +805,6 @@ button, input, textarea, select {
     flex-direction: column-reverse !important;
   }
 
-  .vault-sidebar-container {
-    flex-direction: column-reverse !important;
-  }
 
   .files-container {
     flex-direction: column-reverse !important;

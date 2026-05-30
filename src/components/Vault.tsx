@@ -425,7 +425,7 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
   const showDetailView = !!(selectedItem || editingItemType);
 
   return (
-    <div style={{ height: 'calc(100vh - 160px)' }}>
+    <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
       {/* Portal the Lock Button to the top header banner */}
       {document.getElementById('header-actions') && createPortal(
         <button 
@@ -443,7 +443,7 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
 
       {/* Side Item list */}
       {!showDetailView && (
-      <div className="vault-sidebar-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '20px', height: '100%', overflow: 'hidden' }}>
+      <div className="vault-sidebar-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '20px', flexGrow: 1, overflow: 'hidden' }}>
 
         <div className="items-list" style={{ flexGrow: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
           {activeTab === 'passwords' ? (
@@ -489,52 +489,51 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: 'auto', paddingTop: '8px' }}>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button 
-            className={`btn-secondary ${activeTab === 'passwords' ? 'btn-primary' : ''}`} 
-            onClick={() => { setActiveTab('passwords'); setSelectedItem(null); setEditingItemType(null); }}
-            style={{ flexGrow: 1, padding: '10px' }}
-          >
-            Passwords
-          </button>
-          <button 
-            className={`btn-secondary ${activeTab === 'cards' ? 'btn-primary' : ''}`} 
-            onClick={() => { setActiveTab('cards'); setSelectedItem(null); setEditingItemType(null); }}
-            style={{ flexGrow: 1, padding: '10px' }}
-          >
-            Cards
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <input
-            type="text"
-            placeholder={`Search ${activeTab}...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              flexGrow: 1,
-              padding: '12px 16px',
-              borderRadius: 'var(--border-radius-md)',
-              border: '1px solid var(--border)',
-              backgroundColor: 'var(--bg-surface)'
-            }}
-          />
-          <button 
-            className="btn-primary" 
-            onClick={() => {
-              setSelectedItem(null);
-              setEditingItemType(activeTab === 'passwords' ? 'password' : 'card');
-              // Clear forms
-              setPwTitle(''); setPwUsername(''); setPwPassword(''); setPwUrl(''); setPwNotes('');
-              setCardHolder(''); setCardNumber(''); setCardBrand('Visa'); setCardExpiry(''); setCardCvv(''); setCardPin(''); setCardNotes('');
-            }}
-            style={{ padding: '12px 14px' }}
-          >
-            +
-          </button>
-        </div>
-
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <input
+              type="text"
+              placeholder={`Search ${activeTab}...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                flexGrow: 1,
+                padding: '12px 16px',
+                borderRadius: 'var(--border-radius-md)',
+                border: '1px solid var(--border)',
+                backgroundColor: 'var(--bg-surface)'
+              }}
+            />
+            <button 
+              className="btn-primary" 
+              onClick={() => {
+                setSelectedItem(null);
+                setEditingItemType(activeTab === 'passwords' ? 'password' : 'card');
+                // Clear forms
+                setPwTitle(''); setPwUsername(''); setPwPassword(''); setPwUrl(''); setPwNotes('');
+                setCardHolder(''); setCardNumber(''); setCardBrand('Visa'); setCardExpiry(''); setCardCvv(''); setCardPin(''); setCardNotes('');
+              }}
+              style={{ padding: '12px 14px' }}
+            >
+              +
+            </button>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              className={`btn-secondary ${activeTab === 'passwords' ? 'btn-primary' : ''}`} 
+              onClick={() => { setActiveTab('passwords'); setSelectedItem(null); setEditingItemType(null); }}
+              style={{ flexGrow: 1, padding: '10px' }}
+            >
+              Passwords
+            </button>
+            <button 
+              className={`btn-secondary ${activeTab === 'cards' ? 'btn-primary' : ''}`} 
+              onClick={() => { setActiveTab('cards'); setSelectedItem(null); setEditingItemType(null); }}
+              style={{ flexGrow: 1, padding: '10px' }}
+            >
+              Cards
+            </button>
+          </div>
         </div>
       </div>
       )}

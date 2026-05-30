@@ -5,6 +5,10 @@ import Files from './components/Files';
 import Settings from './components/Settings';
 import GoogleDrive from './components/GoogleDrive';
 import OneDrive from './components/OneDrive';
+import { db } from './db/db';
+import { deriveMasterKey, decryptPayload, base64ToArrayBuffer } from './utils/crypto';
+import { verifyLocalBiometrics } from './utils/biometrics';
+
 
 type ActiveTab = 'notes' | 'passwords' | 'cards' | 'files' | 'settings' | 'gdrive' | 'onedrive';
 
@@ -12,6 +16,83 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('notes');
   const [isVaultLocked, setIsVaultLocked] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [appLockEnabled, setAppLockEnabled] = useState(false);
+  const [isAppLocked, setIsAppLocked] = useState(false);
+  const [globalLockPassword, setGlobalLockPassword] = useState('');
+
+
+
+  useEffect(() => {
+    const checkAppLock = async () => {
+      const lockSetting = await db.settings.get('app_level_lock');
+      const hasPwd = await db.settings.get('vault_salt');
+      if (lockSetting?.value === 'true' && hasPwd) {
+        setAppLockEnabled(true);
+        // By default, lock it on fresh startup
+        setIsAppLocked(true);
+      }
+    };
+    checkAppLock();
+  }, []);
+
+  useEffect(() => {
+    if (!appLockEnabled) return;
+
+    let hiddenTime: number | null = null;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenTime = Date.now();
+      } else if (document.visibilityState === 'visible') {
+        if (hiddenTime && Date.now() - hiddenTime > 60000) {
+          setIsAppLocked(true);
+          setIsVaultLocked(true);
+        }
+        hiddenTime = null;
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [appLockEnabled]);
+
+  const handleGlobalUnlock = async () => {
+    if (!globalLockPassword) return;
+    try {
+      const saltRec = await db.settings.get('vault_salt');
+      const verifierRec = await db.settings.get('vault_verifier');
+      if (!saltRec || !verifierRec) return;
+
+      const salt = new Uint8Array(base64ToArrayBuffer(saltRec.value));
+      const key = await deriveMasterKey(globalLockPassword, salt);
+      const dec = await decryptPayload(verifierRec.value, key);
+
+      if (dec === 'VALID_VAULT_KEY') {
+        setIsAppLocked(false);
+        setGlobalLockPassword('');
+      } else {
+        alert('Incorrect Master Password');
+      }
+    } catch (e) {
+      alert('Incorrect Master Password');
+    }
+  };
+
+  const handleGlobalBiometricUnlock = async () => {
+    try {
+      const cred = await db.settings.get('vault_biometric_credential');
+      if (!cred) {
+        alert('Biometrics not enrolled for this vault.');
+        return;
+      }
+      const success = await verifyLocalBiometrics(cred.value);
+      if (success) {
+        setIsAppLocked(false);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Initialize theme from localStorage on mount
   useEffect(() => {
@@ -32,7 +113,7 @@ export default function App() {
         return <Notes />;
       case 'passwords':
       case 'cards':
-        return <Vault activeSubTab={activeTab} onVaultLockChange={(locked) => setIsVaultLocked(locked)} />;
+        return <Vault key={activeTab} activeSubTab={activeTab} onVaultLockChange={(locked) => setIsVaultLocked(locked)} />;
       case 'files':
         return <Files />;
       case 'settings':
@@ -66,6 +147,32 @@ export default function App() {
         return 'One';
     }
   };
+
+  if (isAppLocked) {
+    return (
+      <div className="app-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100dvh', backgroundColor: 'var(--bg-base)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '40px', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--border-radius-lg)', border: '1px solid var(--border)', maxWidth: '400px', width: '100%', textAlign: 'center', boxShadow: 'var(--shadow-lg)' }}>
+          <div style={{ fontSize: '48px' }}>🛡️</div>
+          <h2 style={{ fontFamily: 'var(--font-heading)', margin: 0 }}>App Locked</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
+            App level lock is enabled. Please enter your Master Password or use Biometrics to continue.
+          </p>
+          <input 
+            type="password" 
+            placeholder="Master Password" 
+            value={globalLockPassword}
+            onChange={(e) => setGlobalLockPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleGlobalUnlock()}
+            style={{ padding: '14px', borderRadius: 'var(--border-radius-md)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-base)', width: '100%', boxSizing: 'border-box' }}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button className="btn-primary" onClick={handleGlobalUnlock} style={{ padding: '14px' }}>Unlock App</button>
+            <button className="btn-secondary" onClick={handleGlobalBiometricUnlock} style={{ padding: '14px' }}>FaceID / TouchID</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container" data-vault-theme={isVaultThemeActive ? 'true' : 'false'}>

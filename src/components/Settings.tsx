@@ -41,6 +41,7 @@ export default function Settings() {
   const [hasPassword, setHasPassword] = useState(false);
   const [isBioAvailable, setIsBioAvailable] = useState(false);
   const [isBioEnrolled, setIsBioEnrolled] = useState(false);
+  const [appLockEnabled, setAppLockEnabled] = useState(false);
 
   // Password fields
   const [oldPassword, setOldPassword] = useState('');
@@ -77,6 +78,9 @@ export default function Settings() {
     const checkState = async () => {
       const salt = await db.settings.get('vault_salt');
       setHasPassword(!!salt);
+
+      const appLock = await db.settings.get('app_level_lock');
+      setAppLockEnabled(appLock?.value === 'true');
 
       const bioCred = await db.settings.get('vault_biometric_credential');
       setIsBioEnrolled(!!bioCred);
@@ -516,6 +520,32 @@ export default function Settings() {
         ) : (
           <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Setup your secure vault inside the Vault panel first.</span>
         )}
+      </div>
+
+      {/* App Level Lock Settings */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-lg)', backgroundColor: 'var(--bg-surface)' }}>
+        <h2 style={{ fontFamily: 'var(--font-heading)' }}>🛡️ Global App Lock</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '640px' }}>
+          When enabled, the entire application will lock behind your Master Password (and Biometrics) whenever you switch tabs or minimize the window. A 1-minute grace period applies.
+        </p>
+        
+        <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', maxWidth: 'max-content' }}>
+          <input 
+            type="checkbox" 
+            checked={appLockEnabled}
+            onChange={async (e) => {
+              const checked = e.target.checked;
+              setAppLockEnabled(checked);
+              await db.settings.put({ key: 'app_level_lock', value: checked ? 'true' : 'false' });
+            }}
+            disabled={!hasPassword}
+            style={{ width: '18px', height: '18px', accentColor: 'var(--accent)' }}
+          />
+          <span style={{ fontWeight: 600, color: hasPassword ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
+            Require authentication to open app
+          </span>
+        </label>
+        {!hasPassword && <span style={{ color: '#ef4444', fontSize: '12px' }}>You must setup a Master Password first.</span>}
       </div>
 
       {/* Biometric unlock settings */}

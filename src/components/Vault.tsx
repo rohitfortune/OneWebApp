@@ -443,7 +443,52 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
 
       {/* Side Item list */}
       {!showDetailView && (
-      <div className="vault-sidebar-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto', paddingBottom: '20px' }}>
+      <div className="vault-sidebar-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '20px', height: '100%', overflow: 'hidden' }}>
+
+        <div className="items-list" style={{ flexGrow: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
+          {activeTab === 'passwords' ? (
+            filteredPasswords.map((p) => (
+              <div 
+                key={p.uuid} 
+                className={`item-card ${selectedItem?.uuid === p.uuid ? 'active' : ''}`}
+                onClick={() => { setSelectedItem(p); setEditingItemType(null); }}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{p.title}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{p.username}</span>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); handleDeleteItem(p.uuid); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>🗑️</button>
+              </div>
+            ))
+          ) : (
+            filteredCards.map((c) => (
+              <div 
+                key={c.uuid} 
+                className={`item-card ${selectedItem?.uuid === c.uuid ? 'active' : ''}`}
+                onClick={() => { setSelectedItem(c); setEditingItemType(null); }}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.cardHolder}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    {c.brand} (•••• {c.cardNumber.slice(-4)})
+                  </span>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); handleDeleteItem(c.uuid); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>🗑️</button>
+              </div>
+            ))
+          )}
+
+          {activeTab === 'passwords' && filteredPasswords.length === 0 && (
+            <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '40px 0' }}>No credentials</div>
+          )}
+          {activeTab === 'cards' && filteredCards.length === 0 && (
+            <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '40px 0' }}>No cards</div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: 'auto', paddingTop: '8px' }}>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button 
             className={`btn-secondary ${activeTab === 'passwords' ? 'btn-primary' : ''}`} 
@@ -490,47 +535,6 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
           </button>
         </div>
 
-        <div className="items-list">
-          {activeTab === 'passwords' ? (
-            filteredPasswords.map((p) => (
-              <div 
-                key={p.uuid} 
-                className={`item-card ${selectedItem?.uuid === p.uuid ? 'active' : ''}`}
-                onClick={() => { setSelectedItem(p); setEditingItemType(null); }}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{p.title}</span>
-                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{p.username}</span>
-                </div>
-                <button onClick={(e) => { e.stopPropagation(); handleDeleteItem(p.uuid); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>🗑️</button>
-              </div>
-            ))
-          ) : (
-            filteredCards.map((c) => (
-              <div 
-                key={c.uuid} 
-                className={`item-card ${selectedItem?.uuid === c.uuid ? 'active' : ''}`}
-                onClick={() => { setSelectedItem(c); setEditingItemType(null); }}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.cardHolder}</span>
-                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                    {c.brand} (•••• {c.cardNumber.slice(-4)})
-                  </span>
-                </div>
-                <button onClick={(e) => { e.stopPropagation(); handleDeleteItem(c.uuid); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>🗑️</button>
-              </div>
-            ))
-          )}
-
-          {activeTab === 'passwords' && filteredPasswords.length === 0 && (
-            <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '40px 0' }}>No credentials</div>
-          )}
-          {activeTab === 'cards' && filteredCards.length === 0 && (
-            <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '40px 0' }}>No cards</div>
-          )}
         </div>
       </div>
       )}

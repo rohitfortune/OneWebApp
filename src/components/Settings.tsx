@@ -308,12 +308,15 @@ export default function Settings() {
       
       const data = await downloadRes.json();
 
-      if (data.version !== 1 || !data.vault) {
+      if (!data.version || !data.vault) {
         alert('Invalid backup file format');
         return;
       }
 
       if (window.confirm('Importing this cloud backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
+        const oldGClient = await db.settings.get('google_client_id');
+        const oldMClient = await db.settings.get('microsoft_client_id');
+
         await db.notes.clear();
         await db.passwords.clear();
         await db.creditCards.clear();
@@ -321,6 +324,14 @@ export default function Settings() {
 
         await db.settings.put({ key: 'vault_salt', value: data.vault.salt });
         await db.settings.put({ key: 'vault_verifier', value: data.vault.verifier });
+
+        if (oldGClient?.value) {
+          await db.settings.put(oldGClient);
+        }
+
+        if (oldMClient?.value) {
+          await db.settings.put(oldMClient);
+        }
 
         for (const n of data.notes) {
           await db.notes.add({
@@ -359,12 +370,15 @@ export default function Settings() {
       const text = await file.text();
       const data = JSON.parse(text);
 
-      if (data.version !== 1 || !data.vault) {
+      if (!data.version || !data.vault) {
         alert('Invalid backup file format');
         return;
       }
 
       if (window.confirm('Importing this backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
+        const oldGClient = await db.settings.get('google_client_id');
+        const oldMClient = await db.settings.get('microsoft_client_id');
+
         await db.notes.clear();
         await db.passwords.clear();
         await db.creditCards.clear();
@@ -373,6 +387,14 @@ export default function Settings() {
         // Restore Settings
         await db.settings.put({ key: 'vault_salt', value: data.vault.salt });
         await db.settings.put({ key: 'vault_verifier', value: data.vault.verifier });
+
+        if (oldGClient?.value) {
+          await db.settings.put(oldGClient);
+        }
+
+        if (oldMClient?.value) {
+          await db.settings.put(oldMClient);
+        }
 
         // Restore Notes
         for (const n of data.notes) {

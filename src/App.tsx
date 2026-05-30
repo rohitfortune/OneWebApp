@@ -145,9 +145,11 @@ export default function App() {
             <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
               ☰
             </button>
-            <h1 className="header-title">{getScreenTitle()}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h1 className="header-title" style={{ margin: 0 }}>{getScreenTitle()}</h1>
+              <div id="header-actions" style={{ display: 'flex', alignItems: 'center' }}></div>
+            </div>
           </div>
-          <div id="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}></div>
         </header>
 
         {/* Dynamic Inner Panel */}

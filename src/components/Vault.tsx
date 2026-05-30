@@ -349,6 +349,13 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
   // If Vault is locked
   if (!vaultKey) {
     return (
+      <>
+      {document.getElementById('header-actions') && createPortal(
+        <span style={{ fontSize: '24px', cursor: 'default', display: 'flex', alignItems: 'center' }} title="Vault is Locked">
+          🔒
+        </span>,
+        document.getElementById('header-actions')!
+      )}
       <div className="lock-screen-overlay" style={{ position: 'relative', height: 'calc(100vh - 160px)', background: 'transparent' }}>
         <div className="lock-card">
           <div className="lock-icon-container">🔑</div>
@@ -410,6 +417,7 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
           )}
         </div>
       </div>
+      </>
     );
   }
 
@@ -421,11 +429,14 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
       {/* Portal the Lock Button to the top header banner */}
       {document.getElementById('header-actions') && createPortal(
         <button 
-          className="btn-secondary" 
+          className="icon-btn" 
           onClick={handleLockVault} 
-          style={{ padding: '6px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', borderStyle: 'dashed', borderColor: 'var(--accent)', color: 'var(--accent)' }}
+          title="Click to Lock Vault"
+          style={{ background: 'none', border: 'none', padding: 0, fontSize: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'transform 0.2s' }}
+          onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+          onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
         >
-          🔒 Lock Vault
+          🔓
         </button>,
         document.getElementById('header-actions')!
       )}

@@ -58,7 +58,7 @@ export default function Settings() {
   const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system');
 
   // Custom Modal State
-  const [modalMessage, setModalMessage] = useState('');
+  const [modalState, setModalState] = useState<{ type: 'success' | 'error', message: string, action?: () => void } | null>(null);
 
   const handleThemeChange = (newTheme: 'system' | 'light' | 'dark') => {
     setTheme(newTheme);
@@ -190,7 +190,7 @@ export default function Settings() {
     const saltRec = await db.settings.get('vault_salt');
     const verifierRec = await db.settings.get('vault_verifier');
     if (!saltRec || !verifierRec) {
-      alert('Please set up your master password vault before exporting.');
+      setModalState({ type: 'error', message: 'Please set up your master password vault before exporting.' });
       return;
     }
 
@@ -227,7 +227,7 @@ export default function Settings() {
     
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    alert('Encrypted secure backup successfully created and downloaded!');
+    setModalState({ type: 'success', message: 'Encrypted secure backup successfully created and downloaded!' });
   };
 
   const handleUploadToGoogleDrive = async (accessToken: string) => {
@@ -235,7 +235,7 @@ export default function Settings() {
       const saltRec = await db.settings.get('vault_salt');
       const verifierRec = await db.settings.get('vault_verifier');
       if (!saltRec || !verifierRec) {
-        alert('Please set up your master password vault before exporting.');
+        setModalState({ type: 'error', message: 'Please set up your master password vault before exporting.' });
         return;
       }
 
@@ -276,13 +276,13 @@ export default function Settings() {
       });
       
       if (res.ok) {
-        setModalMessage('Encrypted secure backup successfully uploaded to your hidden Google Drive AppData folder!');
+        setModalState({ type: 'success', message: 'Encrypted secure backup successfully uploaded to your hidden Google Drive AppData folder!' });
       } else {
-        alert('Upload failed: ' + await res.text());
+        setModalState({ type: 'error', message: 'Upload failed: ' + await res.text() });
       }
     } catch (e) {
       console.error(e);
-      alert('Error uploading to Google Drive');
+      setModalState({ type: 'error', message: 'Error uploading to Google Drive' });
     }
   };
 
@@ -294,7 +294,7 @@ export default function Settings() {
       const listData = await listRes.json();
       
       if (!listData.files || listData.files.length === 0) {
-        alert('No backup files found in your Google Drive AppData folder.');
+        setModalState({ type: 'error', message: 'No backup files found in your Google Drive AppData folder.' });
         return;
       }
       
@@ -305,14 +305,14 @@ export default function Settings() {
       });
       
       if (!downloadRes.ok) {
-        alert('Failed to download the backup file.');
+        setModalState({ type: 'error', message: 'Failed to download the backup file.' });
         return;
       }
       
       const data = await downloadRes.json();
 
       if (!data.version || !data.vault) {
-        alert('Invalid backup file format');
+        setModalState({ type: 'error', message: 'Invalid backup file format' });
         return;
       }
 
@@ -354,12 +354,15 @@ export default function Settings() {
           await db.creditCards.put(c);
         }
 
-        alert('Cloud Backup successfully imported! Please refresh the page to reload settings.');
-        window.location.reload();
+        setModalState({
+          type: 'success',
+          message: 'Cloud Backup successfully imported! Please refresh the page to reload settings.',
+          action: () => window.location.reload()
+        });
       }
     } catch (e) {
       console.error(e);
-      alert('Error restoring from Google Drive');
+      setModalState({ type: 'error', message: 'Error restoring from Google Drive' });
     }
   };
 
@@ -374,7 +377,7 @@ export default function Settings() {
       const data = JSON.parse(text);
 
       if (!data.version || !data.vault) {
-        alert('Invalid backup file format');
+        setModalState({ type: 'error', message: 'Invalid backup file format' });
         return;
       }
 
@@ -420,11 +423,14 @@ export default function Settings() {
           await db.creditCards.put(c);
         }
 
-        alert('Backup successfully imported! Please refresh the page to reload settings.');
-        window.location.reload();
+        setModalState({
+          type: 'success',
+          message: 'Backup successfully imported! Please refresh the page to reload settings.',
+          action: () => window.location.reload()
+        });
       }
     } catch {
-      alert('Error parsing backup file');
+      setModalState({ type: 'error', message: 'Error parsing backup file' });
     }
   };
 
@@ -587,7 +593,7 @@ export default function Settings() {
       </div>
 
       {/* Central Success Modal */}
-      {modalMessage && (
+      {modalState && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
           backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
@@ -600,13 +606,23 @@ export default function Settings() {
             display: 'flex', flexDirection: 'column', gap: '20px', border: '1px solid var(--border)',
             animation: 'fadeIn 0.2s ease-out'
           }}>
-            <div style={{ fontSize: '56px', lineHeight: 1 }}>✅</div>
-            <h3 style={{ fontFamily: 'var(--font-heading)', margin: 0, fontSize: '24px' }}>Success</h3>
+            <div style={{ fontSize: '56px', lineHeight: 1 }}>
+              {modalState.type === 'success' ? '✅' : '⚠️'}
+            </div>
+            <h3 style={{ fontFamily: 'var(--font-heading)', margin: 0, fontSize: '24px', color: modalState.type === 'error' ? '#ef4444' : 'inherit' }}>
+              {modalState.type === 'success' ? 'Success' : 'Error'}
+            </h3>
             <p style={{ color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6, fontSize: '15px' }}>
-              {modalMessage}
+              {modalState.message}
             </p>
-            <button className="btn-primary" onClick={() => setModalMessage('')} style={{ marginTop: '16px', padding: '14px', fontSize: '16px' }}>
-              Awesome!
+            <button className={modalState.type === 'success' ? 'btn-primary' : 'btn-secondary'} 
+              onClick={() => {
+                const action = modalState.action;
+                setModalState(null);
+                if (action) action();
+              }} 
+              style={{ marginTop: '16px', padding: '14px', fontSize: '16px', ...(modalState.type === 'error' ? { borderColor: '#ef4444', color: '#ef4444' } : {}) }}>
+              {modalState.action ? 'Reload Now' : (modalState.type === 'success' ? 'Awesome!' : 'Dismiss')}
             </button>
           </div>
         </div>

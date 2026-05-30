@@ -184,7 +184,7 @@ export default function App() {
       {/* Navigation Sidebar */}
       <aside className={`app-sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="brand-section">
-          <div className="brand-logo">1</div>
+          <img src="/logo.jpg" alt="One Logo" className="brand-logo-img" />
           <span className="brand-name">One</span>
         </div>
 

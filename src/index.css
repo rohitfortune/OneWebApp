@@ -165,23 +165,16 @@ button, input, textarea, select {
   gap: 12px;
 }
 
-.brand-logo {
+.brand-logo-img {
   width: 42px;
   height: 42px;
-  background: linear-gradient(135deg, var(--accent), #ff9800);
   border-radius: var(--border-radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 22px;
+  object-fit: cover;
   box-shadow: 0 4px 14px var(--accent-soft);
   transition: transform var(--transition-normal);
 }
 
-.brand-logo:hover {
+.brand-logo-img:hover {
   transform: rotate(-8deg) scale(1.08);
 }
 

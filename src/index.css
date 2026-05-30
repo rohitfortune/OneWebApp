@@ -169,7 +169,10 @@ button, input, textarea, select {
   width: 42px;
   height: 42px;
   border-radius: var(--border-radius-md);
-  object-fit: cover;
+  object-fit: contain;
+  background: linear-gradient(135deg, var(--accent), #ff9800);
+  padding: 6px;
+  box-sizing: border-box;
   box-shadow: 0 4px 14px var(--accent-soft);
   transition: transform var(--transition-normal);
 }

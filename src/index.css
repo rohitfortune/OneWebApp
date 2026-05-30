@@ -506,6 +506,7 @@ button, input, textarea, select {
   z-index: 1; /* Remains UNDER the text editor */
   pointer-events: all;
   background: transparent;
+  touch-action: none; /* Crucial for continuous finger drawing on mobile */
 }
 
 /* Drawing Mode Layer Interactions: pass mouse/stylus inputs through text fields */

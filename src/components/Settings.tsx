@@ -439,8 +439,8 @@ export default function Settings() {
   };
 
   const handleSaveOAuthSettings = async () => {
-    await db.settings.put({ key: 'google_client_id', value: googleClientId });
-    await db.settings.put({ key: 'microsoft_client_id', value: microsoftClientId });
+    await db.settings.put({ key: 'google_client_id', value: googleClientId.trim() });
+    await db.settings.put({ key: 'microsoft_client_id', value: microsoftClientId.trim() });
     alert('Cloud Backup settings saved successfully!');
   };
 

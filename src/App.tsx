@@ -6,7 +6,7 @@ import Settings from './components/Settings';
 import GoogleDrive from './components/GoogleDrive';
 import OneDrive from './components/OneDrive';
 
-type ActiveTab = 'notes' | 'vault' | 'files' | 'settings' | 'gdrive' | 'onedrive';
+type ActiveTab = 'notes' | 'passwords' | 'cards' | 'files' | 'settings' | 'gdrive' | 'onedrive';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('notes');
@@ -24,14 +24,15 @@ export default function App() {
   }, []);
 
   // Determine whether to shift accent colors to Indigo Vault Mode
-  const isVaultThemeActive = activeTab === 'vault' && !isVaultLocked;
+  const isVaultThemeActive = (activeTab === 'passwords' || activeTab === 'cards') && !isVaultLocked;
 
   const renderActiveScreen = () => {
     switch (activeTab) {
       case 'notes':
         return <Notes />;
-      case 'vault':
-        return <Vault onVaultLockChange={(locked) => setIsVaultLocked(locked)} />;
+      case 'passwords':
+      case 'cards':
+        return <Vault activeSubTab={activeTab} onVaultLockChange={(locked) => setIsVaultLocked(locked)} />;
       case 'files':
         return <Files />;
       case 'settings':
@@ -49,8 +50,10 @@ export default function App() {
     switch (activeTab) {
       case 'notes':
         return 'Personal Notes & Sketches';
-      case 'vault':
-        return isVaultLocked ? 'Secure Credentials Vault' : 'Vault';
+      case 'passwords':
+        return isVaultLocked ? 'Secure Passwords Vault' : 'Passwords Vault';
+      case 'cards':
+        return isVaultLocked ? 'Secure Cards Vault' : 'Cards Vault';
       case 'files':
         return 'Files';
       case 'settings':
@@ -88,11 +91,19 @@ export default function App() {
           </button>
           
           <button 
-            className={`nav-item ${activeTab === 'vault' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('vault'); setIsMobileMenuOpen(false); }}
+            className={`nav-item ${activeTab === 'passwords' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('passwords'); setIsMobileMenuOpen(false); }}
           >
-            <span className="nav-icon">🔒</span>
-            <span>Secure Vault</span>
+            <span className="nav-icon">🔑</span>
+            <span>Passwords</span>
+          </button>
+          
+          <button 
+            className={`nav-item ${activeTab === 'cards' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('cards'); setIsMobileMenuOpen(false); }}
+          >
+            <span className="nav-icon">💳</span>
+            <span>Cards</span>
           </button>
 
           <button 

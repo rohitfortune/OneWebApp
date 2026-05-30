@@ -12,10 +12,11 @@ import {
 import { isBiometricsAvailable, verifyLocalBiometrics } from '../utils/biometrics';
 
 interface VaultProps {
-  onVaultLockChange: (locked: boolean) => void;
+  onVaultLockChange?: (locked: boolean) => void;
+  activeSubTab: 'passwords' | 'cards';
 }
 
-export default function Vault({ onVaultLockChange }: VaultProps) {
+export default function Vault({ onVaultLockChange, activeSubTab }: VaultProps) {
   // Vault session decryption key (stored strictly in-memory)
   const [vaultKey, setVaultKey] = useState<CryptoKey | null>(null);
   
@@ -30,8 +31,13 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
   const [confirmMasterPassword, setConfirmMasterPassword] = useState('');
 
   // Unlocked panel tabs & selection
-  const [activeTab, setActiveTab] = useState<'passwords' | 'cards'>('passwords');
+  const activeTab = activeSubTab;
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    setSelectedItem(null);
+    setEditingItemType(null);
+  }, [activeTab]);
 
   // Lists
   const dbPasswords = useLiveQuery(() => db.passwords.toArray()) || [];
@@ -94,7 +100,7 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
 
   // Lock changes trigger background style overrides
   useEffect(() => {
-    onVaultLockChange(!vaultKey);
+    onVaultLockChange?.(!vaultKey);
   }, [vaultKey, onVaultLockChange]);
 
   // Decrypt items when vault is unlocked or items list updates
@@ -518,22 +524,7 @@ export default function Vault({ onVaultLockChange }: VaultProps) {
             </button>
           </div>
           
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button 
-              className={`btn-secondary ${activeTab === 'passwords' ? 'btn-primary' : ''}`} 
-              onClick={() => { setActiveTab('passwords'); setSelectedItem(null); setEditingItemType(null); }}
-              style={{ flexGrow: 1, padding: '10px' }}
-            >
-              Passwords
-            </button>
-            <button 
-              className={`btn-secondary ${activeTab === 'cards' ? 'btn-primary' : ''}`} 
-              onClick={() => { setActiveTab('cards'); setSelectedItem(null); setEditingItemType(null); }}
-              style={{ flexGrow: 1, padding: '10px' }}
-            >
-              Cards
-            </button>
-          </div>
+
         </div>
       </div>
       )}

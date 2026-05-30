@@ -24,15 +24,91 @@ export default function Files() {
   type DialogState = {
     title: string;
     message?: string;
-    type: 'alert' | 'confirm' | 'prompt';
+    type: 'alert' | 'confirm' | 'prompt' | 'move_picker';
     confirmText?: string;
     onConfirm: (val?: string) => void;
   };
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+
   // --- Handlers ---
   
+
+  const handlePointerDown = (idStr: string) => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => {
+      if (!selectionMode) {
+        setSelectionMode(true);
+        setSelectedItemIds(new Set([idStr]));
+      } else {
+        toggleSelection(idStr);
+      }
+    }, 500); // 500ms long press
+  };
+
+  const handlePointerUp = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  };
+
+  const isDescendant = (parentId: number, childId: number): boolean => {
+    let curr = allFolders.find(f => f.id === childId);
+    while (curr && curr.parentId !== undefined) {
+      if (curr.parentId === parentId) return true;
+      curr = allFolders.find(f => f.id === curr!.parentId);
+    }
+    return false;
+  };
+
+  const executeMove = async (targetFolderId: number | undefined, idsToMove: Set<string>) => {
+    for (const idStr of idsToMove) {
+      const parts = idStr.split('-');
+      const type = parts[0];
+      const id = parseInt(parts[1]);
+
+      if (type === 'file') {
+        await db.localFiles.update(id, { folderId: targetFolderId, lastModified: Date.now() });
+      } else if (type === 'folder') {
+        if (id === targetFolderId || (targetFolderId && isDescendant(id, targetFolderId))) {
+          continue;
+        }
+        await db.localFolders.update(id, { parentId: targetFolderId, lastModified: Date.now() });
+      }
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, idStr: string) => {
+    e.dataTransfer.setData('text/plain', idStr);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetFolderId: number | undefined) => {
+    e.preventDefault();
+    const idStr = e.dataTransfer.getData('text/plain');
+    if (idStr) {
+      await executeMove(targetFolderId, new Set([idStr]));
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const openMovePicker = () => {
+    setDialog({
+      title: 'Move To...',
+      type: 'move_picker',
+      onConfirm: async (val) => {
+        const targetId = val === 'home' ? undefined : parseInt(val!);
+        await executeMove(targetId, selectedItemIds);
+        setSelectionMode(false);
+        setSelectedItemIds(new Set());
+        setDialog(null);
+      }
+    });
+  };
+
   const menuRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -91,6 +167,7 @@ export default function Files() {
   };
 
   const handleFileDownload = (file: FileRecord) => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
     if (selectionMode) {
       toggleSelection(`file-${file.id}`);
       return;
@@ -106,6 +183,7 @@ export default function Files() {
   };
 
   const handleFolderClick = (folder: FolderRecord) => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
     if (selectionMode) {
       toggleSelection(`folder-${folder.id}`);
       return;
@@ -482,6 +560,8 @@ export default function Files() {
         <span 
           style={{ cursor: 'pointer', color: currentFolderId === undefined ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: currentFolderId === undefined ? 700 : 400 }}
           onClick={() => setCurrentFolderId(undefined)}
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDrop(e, undefined)}
         >
           Home
         </span>
@@ -491,6 +571,8 @@ export default function Files() {
             <span 
               style={{ cursor: 'pointer', color: idx === breadcrumbs.length - 1 ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: idx === breadcrumbs.length - 1 ? 700 : 400 }}
               onClick={() => setCurrentFolderId(crumb.id)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, crumb.id)}
             >
               {crumb.name}
             </span>
@@ -516,6 +598,13 @@ export default function Files() {
             <div
               key={`folder-${folder.id}`}
               onClick={() => handleFolderClick(folder)}
+              onPointerDown={() => handlePointerDown(`folder-${folder.id}`)}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+              draggable={!selectionMode}
+              onDragStart={(e) => handleDragStart(e, `folder-${folder.id}`)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, folder.id)}
               className="item-card"
               style={{ 
                 display: 'flex', 
@@ -525,7 +614,8 @@ export default function Files() {
                 padding: '20px',
                 position: 'relative',
                 border: isSelected ? '2px solid var(--accent)' : 'none',
-                background: isSelected ? 'var(--accent-soft)' : undefined
+                background: isSelected ? 'var(--accent-soft)' : undefined,
+                userSelect: 'none', WebkitUserSelect: 'none'
               }}
             >
               <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -562,6 +652,11 @@ export default function Files() {
             <div
               key={`file-${file.id}`}
               onClick={() => handleFileDownload(file)}
+              onPointerDown={() => handlePointerDown(`file-${file.id}`)}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+              draggable={!selectionMode}
+              onDragStart={(e) => handleDragStart(e, `file-${file.id}`)}
               className="item-card"
               style={{ 
                 display: 'flex', 
@@ -571,7 +666,8 @@ export default function Files() {
                 padding: '20px',
                 position: 'relative',
                 border: isSelected ? '2px solid var(--accent)' : 'none',
-                background: isSelected ? 'var(--accent-soft)' : undefined
+                background: isSelected ? 'var(--accent-soft)' : undefined,
+                userSelect: 'none', WebkitUserSelect: 'none'
               }}
             >
               <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -640,6 +736,7 @@ export default function Files() {
               ) : (
                 <button className="btn-primary" style={{ flex: 1, padding: '10px 4px', fontSize: '13px' }} onClick={handleShareSelected}>🔗 Share</button>
               )}
+              <button className="btn-secondary" style={{ flex: 1, padding: '10px 4px', fontSize: '13px' }} onClick={openMovePicker}>➡️ Move</button>
               <button className="btn-secondary" style={{ flex: 1, padding: '10px 4px', fontSize: '13px', color: '#ff4444' }} onClick={handleDeleteSelected}>🗑️ Delete</button>
               <button className="btn-secondary" style={{ flex: 1, padding: '10px 4px', fontSize: '13px' }} onClick={() => { setSelectionMode(false); setSelectedItemIds(new Set()); setReadyToShareFiles(null); }}>Cancel</button>
             </div>
@@ -685,6 +782,25 @@ export default function Files() {
                 }}
               />
             )}
+            {dialog.type === 'move_picker' && (
+              <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button 
+                  style={{ padding: '12px', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-primary)' }}
+                  onClick={() => dialog.onConfirm('home')}
+                >
+                  🏠 Home (Root)
+                </button>
+                {allFolders.filter(f => !selectedItemIds.has(`folder-${f.id}`)).map(f => (
+                  <button 
+                    key={f.id}
+                    style={{ padding: '12px', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', color: 'var(--text-primary)' }}
+                    onClick={() => dialog.onConfirm(f.id!.toString())}
+                  >
+                    📂 {f.name}
+                  </button>
+                ))}
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
               {dialog.type !== 'alert' && (
                 <button 
@@ -694,7 +810,8 @@ export default function Files() {
                   Cancel
                 </button>
               )}
-              <button 
+              {dialog.type !== 'move_picker' && (
+                <button 
                 className="btn-primary" 
                 style={dialog.confirmText === 'Delete' ? { backgroundColor: '#ff4444' } : {}}
                 onClick={() => {
@@ -708,6 +825,7 @@ export default function Files() {
               >
                 {dialog.confirmText || 'OK'}
               </button>
+              )}
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db, type FileRecord } from '../db/db';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 
-function GoogleDriveExplorer({ accessToken }: { accessToken: string }) {
+function GoogleDriveExplorer({ accessToken, onLogout }: { accessToken: string, onLogout: () => void }) {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -42,6 +42,10 @@ function GoogleDriveExplorer({ accessToken }: { accessToken: string }) {
       });
       const data = await res.json();
       if (data.error) {
+        if (data.error.code === 401) {
+          onLogout();
+          return;
+        }
         alert('API Error: ' + data.error.message);
         return;
       }
@@ -547,7 +551,7 @@ function GoogleAuthWrapper({ onToken }: { onToken: (token: string) => void }) {
 }
 
 export default function GoogleDrive() {
-  const [accessToken, setAccessToken] = useState<string | null>(() => sessionStorage.getItem('gdrive_token'));
+  const [accessToken, setAccessToken] = useState<string | null>(() => localStorage.getItem('gdrive_token'));
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   if (!clientId) {
@@ -561,15 +565,19 @@ export default function GoogleDrive() {
     );
   }
 
-  const handleSetToken = (token: string) => {
-    sessionStorage.setItem('gdrive_token', token);
+  const handleSetToken = (token: string | null) => {
+    if (token) {
+      localStorage.setItem('gdrive_token', token);
+    } else {
+      localStorage.removeItem('gdrive_token');
+    }
     setAccessToken(token);
   };
 
   return (
     <GoogleOAuthProvider clientId={clientId}>
       {accessToken ? (
-        <GoogleDriveExplorer accessToken={accessToken} />
+        <GoogleDriveExplorer accessToken={accessToken} onLogout={() => handleSetToken(null)} />
       ) : (
         <GoogleAuthWrapper onToken={handleSetToken} />
       )}

@@ -37,7 +37,7 @@ function GoogleDriveExplorer({ accessToken, onLogout }: { accessToken: string, o
     setLoading(true);
     const currentFolderId = currentFolderStack[currentFolderStack.length - 1].id;
     try {
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files?fields=files(id,name,mimeType,size,modifiedTime,webViewLink,parents)&q='${currentFolderId}'+in+parents+and+trashed=false`, {
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files?fields=files(id,name,mimeType,size,modifiedTime,webViewLink,parents,iconLink,hasThumbnail,thumbnailLink)&q='${currentFolderId}'+in+parents+and+trashed=false`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       const data = await res.json();
@@ -361,14 +361,32 @@ function GoogleDriveExplorer({ accessToken, onLogout }: { accessToken: string, o
                       }
                     }}
                   >
-                    <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: '200px' }}>
-                      <span style={{ fontWeight: 600, color: isFolder ? 'var(--accent)' : 'var(--text-primary)' }}>
-                        {isFolder ? '📁 ' : ''}{f.name}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', flexShrink: 0 }}>
+                      {f.hasThumbnail && f.thumbnailLink ? (
+                        <img src={f.thumbnailLink} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
+                      ) : f.iconLink ? (
+                        <img src={f.iconLink} alt="icon" style={{ width: '24px', height: '24px' }} />
+                      ) : (
+                        <span style={{ fontSize: '24px' }}>{isFolder ? '📁' : '📄'}</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: 0 }}>
+                      <span style={{ 
+                        fontWeight: 600, 
+                        color: isFolder ? 'var(--accent)' : 'var(--text-primary)',
+                        whiteSpace: isSelected ? 'normal' : 'nowrap',
+                        overflow: isSelected ? 'visible' : 'hidden',
+                        textOverflow: isSelected ? 'clip' : 'ellipsis',
+                        wordBreak: 'break-word'
+                      }}>
+                        {f.name}
                       </span>
-                      <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{f.mimeType}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                        {f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString() : 'Unknown Date'}
+                      </span>
                     </div>
                     {selectionMode && (
-                      <span style={{ fontSize: '20px', marginLeft: '10px' }}>
+                      <span style={{ fontSize: '20px', marginLeft: '10px', flexShrink: 0 }}>
                         {isSelected ? '☑️' : '◻️'}
                       </span>
                     )}

@@ -38,8 +38,8 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
     const currentFolderId = currentFolderStack[currentFolderStack.length - 1].id;
     try {
       const url = currentFolderId === 'root'
-        ? 'https://graph.microsoft.com/v1.0/me/drive/root/children'
-        : `https://graph.microsoft.com/v1.0/me/drive/items/${currentFolderId}/children`;
+        ? 'https://graph.microsoft.com/v1.0/me/drive/root/children?$expand=thumbnails'
+        : `https://graph.microsoft.com/v1.0/me/drive/items/${currentFolderId}/children?$expand=thumbnails`;
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
@@ -366,14 +366,30 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
                       }
                     }}
                   >
-                    <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: '200px' }}>
-                      <span style={{ fontWeight: 600, color: f.folder ? 'var(--accent)' : 'var(--text-primary)' }}>
-                        {f.folder ? '📁 ' : ''}{f.name}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', flexShrink: 0 }}>
+                      {f.thumbnails && f.thumbnails[0] && f.thumbnails[0].small ? (
+                        <img src={f.thumbnails[0].small.url} alt="thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
+                      ) : (
+                        <span style={{ fontSize: '24px' }}>{f.folder ? '📁' : '📄'}</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: 0 }}>
+                      <span style={{ 
+                        fontWeight: 600, 
+                        color: f.folder ? 'var(--accent)' : 'var(--text-primary)',
+                        whiteSpace: isSelected ? 'normal' : 'nowrap',
+                        overflow: isSelected ? 'visible' : 'hidden',
+                        textOverflow: isSelected ? 'clip' : 'ellipsis',
+                        wordBreak: 'break-word'
+                      }}>
+                        {f.name}
                       </span>
-                      <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{f.file ? 'File' : 'Folder'}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                        {f.lastModifiedDateTime ? new Date(f.lastModifiedDateTime).toLocaleDateString() : (f.file ? 'File' : 'Folder')}
+                      </span>
                     </div>
                     {selectionMode && (
-                      <span style={{ fontSize: '20px', marginLeft: '10px' }}>
+                      <span style={{ fontSize: '20px', marginLeft: '10px', flexShrink: 0 }}>
                         {isSelected ? '☑️' : '◻️'}
                       </span>
                     )}

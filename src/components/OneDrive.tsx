@@ -544,13 +544,10 @@ function OneDriveAuthWrapper({ onToken }: { onToken: (token: string) => void }) 
 
   const handleLogin = async () => {
     try {
-      const response = await instance.loginPopup({ scopes: ['Files.ReadWrite.All'] });
-      if (response && response.accessToken) {
-        onToken(response.accessToken);
-      }
-    } catch (e) {
+      await instance.loginRedirect({ scopes: ['Files.ReadWrite.All'] });
+    } catch (e: any) {
       console.error(e);
-      alert('Login Failed');
+      alert('Login Failed: ' + (e?.message || 'Unknown error'));
     }
   };
 

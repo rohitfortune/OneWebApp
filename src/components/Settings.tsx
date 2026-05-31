@@ -4,7 +4,8 @@ import {
   deriveMasterKey, 
   encryptPayload, 
   decryptPayload, 
-  arrayBufferToBase64 
+  arrayBufferToBase64,
+  generateRandomBytes
 } from '../utils/crypto';
 import { isBiometricsAvailable, enrollLocalBiometrics } from '../utils/biometrics';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
@@ -160,6 +161,45 @@ export default function Settings() {
     } catch (e) {
       console.error(e);
       alert('Password change failed. Ensure old password is correct.');
+    }
+  };
+
+  const handleSetupMasterPassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      alert('Please fill out both password fields');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+
+    try {
+      const salt = generateRandomBytes(16);
+      const saltBase64 = arrayBufferToBase64(salt.buffer as ArrayBuffer);
+      
+      const key = await deriveMasterKey(newPassword, salt);
+      const verifier = await encryptPayload('VALID_VAULT_KEY', key);
+
+      await db.settings.put({ key: 'vault_salt', value: saltBase64 });
+      await db.settings.put({ key: 'vault_verifier', value: verifier });
+
+      // Save to session so other tabs know it's unlocked
+      try {
+        const rawBytes = await window.crypto.subtle.exportKey('raw', key);
+        const base64 = arrayBufferToBase64(rawBytes);
+        sessionStorage.setItem('vault_unlocked_session_key', base64);
+      } catch (err) {
+        console.error('Failed to export new key to session storage:', err);
+      }
+
+      setHasPassword(true);
+      setNewPassword('');
+      setConfirmPassword('');
+      alert('Master password successfully created! Vault initialized.');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to set up master password');
     }
   };
 
@@ -485,7 +525,14 @@ export default function Settings() {
             <button className="btn-primary" onClick={handleChangePassword} style={{ alignSelf: 'flex-start' }}>Change Password</button>
           </div>
         ) : (
-          <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Setup your secure vault inside the Vault panel first.</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '440px' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
+              You haven't initialized your secure vault yet. Create a Master Password now to enable encrypted password and credit card storage.
+            </p>
+            <input type="password" placeholder="New Master Password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-base)' }} />
+            <input type="password" placeholder="Confirm Master Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={{ padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-base)' }} />
+            <button className="btn-primary" onClick={handleSetupMasterPassword} style={{ alignSelf: 'flex-start' }}>Create Master Password</button>
+          </div>
         )}
       </div>
 

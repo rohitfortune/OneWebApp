@@ -420,6 +420,67 @@ export default function Files() {
       setSelectedItemIds(new Set());
     }
   };
+
+  const handleDownloadSelected = () => {
+    const filesToDownload: File[] = [];
+    
+    const addFolderFiles = (folderId: number) => {
+      const childFiles = allFiles.filter(f => f.folderId === folderId);
+      childFiles.forEach(f => filesToDownload.push(new File([f.blob], f.displayName, { type: f.mimeType })));
+      const childFolders = allFolders.filter(f => f.parentId === folderId);
+      childFolders.forEach(f => addFolderFiles(f.id!));
+    };
+
+    for (const idStr of selectedItemIds) {
+      const [type, idPart] = idStr.split('-');
+      const id = parseInt(idPart);
+      if (type === 'file') {
+        const fileRec = allFiles.find(f => f.id === id);
+        if (fileRec) filesToDownload.push(new File([fileRec.blob], fileRec.displayName, { type: fileRec.mimeType }));
+      } else {
+        addFolderFiles(id);
+      }
+    }
+
+    forceDownloadFiles(filesToDownload);
+    setSelectionMode(false);
+    setSelectedItemIds(new Set());
+    setReadyToShareFiles(null);
+  };
+
+  const handleRenameSelected = () => {
+    if (selectedItemIds.size !== 1) return;
+    const idStr = Array.from(selectedItemIds)[0];
+    const [type, idPart] = idStr.split('-');
+    const id = parseInt(idPart);
+
+    const oldName = type === 'file' 
+      ? allFiles.find(f => f.id === id)?.displayName 
+      : allFolders.find(f => f.id === id)?.name;
+
+    if (!oldName) return;
+
+    // Use a small timeout to let the click event finish before showing prompt modal
+    setTimeout(() => {
+      setDialog({
+        title: 'Rename',
+        type: 'prompt',
+        confirmText: 'Rename',
+        onConfirm: async (newName) => {
+          if (newName && newName.trim() && newName !== oldName) {
+            if (type === 'file') {
+              await db.localFiles.update(id, { displayName: newName.trim(), lastModified: Date.now() });
+            } else {
+              await db.localFolders.update(id, { name: newName.trim(), lastModified: Date.now() });
+            }
+          }
+          setSelectionMode(false);
+          setSelectedItemIds(new Set());
+          setDialog(null);
+        }
+      });
+    }, 50);
+  };
   
   const handleDeleteSelected = async () => {
     setDialog({
@@ -729,6 +790,10 @@ export default function Files() {
           }}>
             <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '14px' }}>{selectedItemIds.size} Items Selected</span>
             <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+              {selectedItemIds.size === 1 && (
+                <button className="btn-secondary" style={{ flex: 1, padding: '10px 4px', fontSize: '13px' }} onClick={handleRenameSelected}>✏️ Rename</button>
+              )}
+              <button className="btn-secondary" style={{ flex: 1, padding: '10px 4px', fontSize: '13px' }} onClick={handleDownloadSelected}>⬇️ Download</button>
               {isZipping ? (
                 <button className="btn-primary" style={{ flex: 1, padding: '10px 4px', fontSize: '13px' }} disabled>⏳ Zipping</button>
               ) : readyToShareFiles ? (

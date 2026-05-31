@@ -116,6 +116,42 @@ function GoogleDriveExplorer({ accessToken, onLogout }: { accessToken: string, o
     }
   };
 
+
+
+  const handleOpenFile = async (file: any) => {
+    if (!navigator.canShare) {
+      window.open(file.webViewLink, '_blank');
+      return;
+    }
+    
+    try {
+      setDialog({ title: 'Downloading file for sharing...', type: 'alert', onConfirm: () => setDialog(null) });
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (!res.ok) throw new Error('Failed to download file content.');
+      
+      const blob = await res.blob();
+      const shareFile = new File([blob], file.name, { type: file.mimeType || 'application/octet-stream' });
+      setDialog(null); // close dialog before sharing
+      
+      if (navigator.canShare({ files: [shareFile] })) {
+        await navigator.share({ files: [shareFile] });
+      } else {
+        window.open(file.webViewLink, '_blank');
+      }
+    } catch (e: any) {
+      console.error(e);
+      setDialog(null);
+      if (e.name === 'NotAllowedError') {
+         // Fallback if browser user activation timed out during a long download
+         window.open(file.webViewLink, '_blank');
+      } else if (e.name !== 'AbortError') { 
+         alert('Error opening file: ' + (e.message || 'Unknown error'));
+      }
+    }
+  };
+
   const handleDownloadSelected = async () => {
     for (const id of selectedItemIds) {
       const file = files.find(f => f.id === id);
@@ -344,7 +380,7 @@ function GoogleDriveExplorer({ accessToken, onLogout }: { accessToken: string, o
                     key={f.id} 
                     className="item-card" 
                     style={{ 
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '10px',
                       border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border)',
                       backgroundColor: isSelected ? 'var(--accent-soft)' : 'var(--bg-base)',
                       cursor: 'pointer'
@@ -358,6 +394,8 @@ function GoogleDriveExplorer({ accessToken, onLogout }: { accessToken: string, o
                       } else if (isFolder) {
                         setCurrentFolderStack([...currentFolderStack, { id: f.id, name: f.name }]);
                         clearSelection();
+                      } else {
+                        handleOpenFile(f);
                       }
                     }}
                   >

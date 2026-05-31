@@ -166,20 +166,34 @@ export default function Files() {
     setShowMenu(false);
   };
 
-  const handleFileDownload = (file: FileRecord) => {
+  const handleFileDownload = async (file: FileRecord) => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     if (selectionMode) {
       toggleSelection(`file-${file.id}`);
       return;
     }
-    const url = URL.createObjectURL(file.blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = file.displayName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    
+    const shareFile = new File([file.blob], file.displayName, { type: file.mimeType || 'application/octet-stream' });
+    
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [shareFile] })) {
+        await navigator.share({ files: [shareFile] });
+      } else {
+        const url = URL.createObjectURL(file.blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.displayName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch (e: any) {
+      console.error(e);
+      if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
+         alert('Error opening file: ' + (e.message || 'Unknown error'));
+      }
+    }
   };
 
   const handleFolderClick = (folder: FolderRecord) => {

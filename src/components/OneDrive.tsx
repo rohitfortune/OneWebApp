@@ -114,6 +114,40 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
     }
   };
 
+  const handleOpenFile = async (file: any) => {
+    const downloadUrl = file['@microsoft.graph.downloadUrl'];
+    const webUrl = file.webUrl;
+    
+    if (!navigator.canShare || !downloadUrl) {
+      if (webUrl) window.open(webUrl, '_blank');
+      return;
+    }
+    
+    try {
+      setDialog({ title: 'Downloading file for sharing...', type: 'alert', onConfirm: () => setDialog(null) });
+      const res = await fetch(downloadUrl);
+      if (!res.ok) throw new Error('Failed to download file content.');
+      
+      const blob = await res.blob();
+      const shareFile = new File([blob], file.name, { type: file.file?.mimeType || 'application/octet-stream' });
+      setDialog(null);
+      
+      if (navigator.canShare({ files: [shareFile] })) {
+        await navigator.share({ files: [shareFile] });
+      } else {
+        if (webUrl) window.open(webUrl, '_blank');
+      }
+    } catch (e: any) {
+      console.error(e);
+      setDialog(null);
+      if (e.name === 'NotAllowedError') {
+         if (webUrl) window.open(webUrl, '_blank');
+      } else if (e.name !== 'AbortError') { 
+         alert('Error opening file: ' + (e.message || 'Unknown error'));
+      }
+    }
+  };
+
   const handleDownloadSelected = async () => {
     for (const id of selectedItemIds) {
       const file = files.find(f => f.id === id);
@@ -349,7 +383,7 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
                     key={f.id} 
                     className="item-card" 
                     style={{ 
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '10px',
                       border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border)',
                       backgroundColor: isSelected ? 'var(--accent-soft)' : 'var(--bg-base)',
                       cursor: 'pointer'
@@ -363,6 +397,8 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
                       } else if (f.folder) {
                         setCurrentFolderStack([...currentFolderStack, { id: f.id, name: f.name }]);
                         clearSelection();
+                      } else {
+                        handleOpenFile(f);
                       }
                     }}
                   >

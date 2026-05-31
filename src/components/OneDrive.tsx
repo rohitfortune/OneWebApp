@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../db/db';
+
 import { PublicClientApplication } from '@azure/msal-browser';
 import { MsalProvider, useMsal } from '@azure/msal-react';
 
@@ -163,18 +163,16 @@ function OneDriveAuthWrapper({ onToken }: { onToken: (token: string) => void }) 
 }
 
 export default function OneDrive() {
-  const [clientId, setClientId] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [msalInstance, setMsalInstance] = useState<PublicClientApplication | null>(null);
+  const clientId = import.meta.env.VITE_MICROSOFT_CLIENT_ID;
 
   useEffect(() => {
-    const fetchId = async () => {
-      const rec = await db.settings.get('microsoft_client_id');
-      if (rec?.value) {
-        setClientId(rec.value);
+    const initMsal = async () => {
+      if (clientId) {
         const msalConfig = {
           auth: {
-            clientId: rec.value,
+            clientId: clientId,
             authority: "https://login.microsoftonline.com/common",
             redirectUri: window.location.origin
           }
@@ -184,15 +182,15 @@ export default function OneDrive() {
         setMsalInstance(pca);
       }
     };
-    fetchId();
-  }, []);
+    initMsal();
+  }, [clientId]);
 
   if (!clientId || !msalInstance) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
         <h2 style={{ fontFamily: 'var(--font-heading)' }}>OneDrive Not Configured</h2>
         <p style={{ color: 'var(--text-secondary)', maxWidth: '500px' }}>
-          Please configure your <b>Microsoft Graph App Client ID</b> in the Settings menu to enable the OneDrive Explorer.
+          Please set the <b>VITE_MICROSOFT_CLIENT_ID</b> environment variable to enable the OneDrive Explorer.
         </p>
       </div>
     );

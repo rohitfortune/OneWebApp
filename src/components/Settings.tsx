@@ -51,9 +51,7 @@ export default function Settings() {
   // Bio fields
   const [bioUsername, setBioUsername] = useState('one-user');
 
-  // Cloud/OAuth Mock configurations
-  const [googleClientId, setGoogleClientId] = useState('');
-  const [microsoftClientId, setMicrosoftClientId] = useState('');
+
 
   // Theme state
   const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system');
@@ -88,11 +86,6 @@ export default function Settings() {
       const bioSupport = await isBiometricsAvailable();
       setIsBioAvailable(bioSupport);
 
-      const gClient = await db.settings.get('google_client_id');
-      if (gClient) setGoogleClientId(gClient.value);
-
-      const mClient = await db.settings.get('microsoft_client_id');
-      if (mClient) setMicrosoftClientId(mClient.value);
     };
     checkState();
   }, []);
@@ -321,9 +314,6 @@ export default function Settings() {
       }
 
       if (window.confirm('Importing this cloud backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
-        const oldGClient = await db.settings.get('google_client_id');
-        const oldMClient = await db.settings.get('microsoft_client_id');
-
         await db.notes.clear();
         await db.passwords.clear();
         await db.creditCards.clear();
@@ -331,14 +321,6 @@ export default function Settings() {
 
         await db.settings.put({ key: 'vault_salt', value: data.vault.salt });
         await db.settings.put({ key: 'vault_verifier', value: data.vault.verifier });
-
-        if (oldGClient?.value) {
-          await db.settings.put(oldGClient);
-        }
-
-        if (oldMClient?.value) {
-          await db.settings.put(oldMClient);
-        }
 
         for (const n of data.notes) {
           await db.notes.add({
@@ -386,9 +368,6 @@ export default function Settings() {
       }
 
       if (window.confirm('Importing this backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
-        const oldGClient = await db.settings.get('google_client_id');
-        const oldMClient = await db.settings.get('microsoft_client_id');
-
         await db.notes.clear();
         await db.passwords.clear();
         await db.creditCards.clear();
@@ -397,14 +376,6 @@ export default function Settings() {
         // Restore Settings
         await db.settings.put({ key: 'vault_salt', value: data.vault.salt });
         await db.settings.put({ key: 'vault_verifier', value: data.vault.verifier });
-
-        if (oldGClient?.value) {
-          await db.settings.put(oldGClient);
-        }
-
-        if (oldMClient?.value) {
-          await db.settings.put(oldMClient);
-        }
 
         // Restore Notes
         for (const n of data.notes) {
@@ -438,11 +409,7 @@ export default function Settings() {
     }
   };
 
-  const handleSaveOAuthSettings = async () => {
-    await db.settings.put({ key: 'google_client_id', value: googleClientId.trim() });
-    await db.settings.put({ key: 'microsoft_client_id', value: microsoftClientId.trim() });
-    alert('Cloud Backup settings saved successfully!');
-  };
+
 
   const handleWipeDatabase = async () => {
     if (window.confirm('☢️ EXTREME WARNING: This will permanently wipe all notes, stored passwords, credit cards, local files, and encryption keys from your device. This cannot be undone. Are you absolutely sure?')) {
@@ -579,8 +546,8 @@ export default function Settings() {
         <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
           <button className="btn-primary" onClick={handleDownloadBackup}>📥 Export Encrypted Backup</button>
           
-          {googleClientId && (
-            <GoogleOAuthProvider clientId={googleClientId}>
+          {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+            <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <GoogleBackupButton onBackup={handleUploadToGoogleDrive} />
                 <GoogleRestoreButton onRestore={handleRestoreFromGoogleDrive} />
@@ -595,21 +562,6 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Cloud Integration settings */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-lg)', backgroundColor: 'var(--bg-surface)' }}>
-        <h2 style={{ fontFamily: 'var(--font-heading)' }}>☁️ Cloud Sync API Configuration</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '640px' }}>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>Google OAuth Web Client ID</label>
-            <input type="text" placeholder="Google Client ID..." value={googleClientId} onChange={(e) => setGoogleClientId(e.target.value)} style={{ width: '100%', padding: '12px', marginTop: '6px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-base)' }} />
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>Microsoft Graph App Client ID</label>
-            <input type="text" placeholder="Microsoft Client ID..." value={microsoftClientId} onChange={(e) => setMicrosoftClientId(e.target.value)} style={{ width: '100%', padding: '12px', marginTop: '6px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-base)' }} />
-          </div>
-          <button className="btn-primary" onClick={handleSaveOAuthSettings} style={{ alignSelf: 'flex-start' }}>Save API Configs</button>
-        </div>
-      </div>
 
       {/* Factory Wipe settings */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-lg)', backgroundColor: 'rgba(239, 68, 68, 0.05)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>

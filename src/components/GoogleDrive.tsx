@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../db/db';
+
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 
 function GoogleDriveExplorer({ accessToken }: { accessToken: string }) {
@@ -166,23 +166,15 @@ function GoogleAuthWrapper({ onToken }: { onToken: (token: string) => void }) {
 }
 
 export default function GoogleDrive() {
-  const [clientId, setClientId] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchId = async () => {
-      const rec = await db.settings.get('google_client_id');
-      if (rec?.value) setClientId(rec.value);
-    };
-    fetchId();
-  }, []);
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   if (!clientId) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
         <h2 style={{ fontFamily: 'var(--font-heading)' }}>Google Drive Not Configured</h2>
         <p style={{ color: 'var(--text-secondary)', maxWidth: '500px' }}>
-          Please configure your <b>Google OAuth Web Client ID</b> in the Settings menu to enable the Drive Explorer.
+          Please set the <b>VITE_GOOGLE_CLIENT_ID</b> environment variable to enable the Drive Explorer.
         </p>
       </div>
     );

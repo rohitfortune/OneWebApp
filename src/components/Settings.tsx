@@ -527,7 +527,7 @@ export default function Settings() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '440px' }}>
             <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
-              You haven't initialized your secure vault yet. Create a Master Password now to enable encrypted password storage, and to unlock secure backups to Google Drive.
+              You haven't initialized your secure vault yet. Create a Master Password now to enable encrypted storage, and to unlock secure backups.
             </p>
             <input type="password" placeholder="New Master Password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-base)' }} />
             <input type="password" placeholder="Confirm Master Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={{ padding: '12px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-md)', backgroundColor: 'var(--bg-base)' }} />

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db, type FileRecord } from '../db/db';
-import { PublicClientApplication } from '@azure/msal-browser';
-import { MsalProvider, useMsal } from '@azure/msal-react';
+import { useMsal } from '@azure/msal-react';
 
 function OneDriveExplorer({ accessToken }: { accessToken: string }) {
   const [files, setFiles] = useState<any[]>([]);
@@ -11,6 +10,9 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Main View Folder Stack
+  const [currentFolderStack, setCurrentFolderStack] = useState<{id: string, name: string}[]>([{id: 'root', name: 'OneDrive Root'}]);
 
   // Custom Prompts
   type DialogState = {
@@ -29,12 +31,16 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
 
   useEffect(() => {
     fetchFiles();
-  }, [accessToken]);
+  }, [accessToken, currentFolderStack]);
 
   const fetchFiles = async () => {
     setLoading(true);
+    const currentFolderId = currentFolderStack[currentFolderStack.length - 1].id;
     try {
-      const res = await fetch('https://graph.microsoft.com/v1.0/me/drive/root/children', {
+      const url = currentFolderId === 'root'
+        ? 'https://graph.microsoft.com/v1.0/me/drive/root/children'
+        : `https://graph.microsoft.com/v1.0/me/drive/items/${currentFolderId}/children`;
+      const res = await fetch(url, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       const data = await res.json();
@@ -86,7 +92,12 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
     setLoading(true);
 
     try {
-      await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${file.name}:/content`, {
+      const currentFolderId = currentFolderStack[currentFolderStack.length - 1].id;
+      const url = currentFolderId === 'root'
+        ? `https://graph.microsoft.com/v1.0/me/drive/root:/${file.name}:/content`
+        : `https://graph.microsoft.com/v1.0/me/drive/items/${currentFolderId}:/${file.name}:/content`;
+        
+      await fetch(url, {
         method: 'PUT',
         headers: { 
           Authorization: `Bearer ${accessToken}`,
@@ -308,12 +319,28 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
           </div>
         </div>
 
+        <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '10px' }}>
+          {currentFolderStack.map((level, i) => (
+            <button 
+              key={level.id}
+              onClick={() => {
+                const newStack = currentFolderStack.slice(0, i + 1);
+                setCurrentFolderStack(newStack);
+                clearSelection();
+              }}
+              style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap' }}
+            >
+              {level.name} {i < currentFolderStack.length - 1 ? ' > ' : ''}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
           <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Syncing with Microsoft OneDrive...</div>
         ) : (
           <div className="items-list">
             {files.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>No files found in OneDrive root.</div>
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>No files found in this folder.</div>
             ) : (
               files.map(f => {
                 const isSelected = selectedItemIds.has(f.id);
@@ -330,10 +357,19 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
                     onPointerDown={(e) => { if (e.button !== 2) handlePointerDown(f.id); }}
                     onPointerUp={handlePointerUp}
                     onPointerLeave={handlePointerUp}
-                    onClick={() => { if (selectionMode) toggleSelection(f.id); }}
+                    onClick={() => {
+                      if (selectionMode) {
+                        toggleSelection(f.id);
+                      } else if (f.folder) {
+                        setCurrentFolderStack([...currentFolderStack, { id: f.id, name: f.name }]);
+                        clearSelection();
+                      }
+                    }}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: '200px' }}>
-                      <span style={{ fontWeight: 600 }}>{f.name}</span>
+                      <span style={{ fontWeight: 600, color: f.folder ? 'var(--accent)' : 'var(--text-primary)' }}>
+                        {f.folder ? '📁 ' : ''}{f.name}
+                      </span>
                       <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{f.file ? 'File' : 'Folder'}</span>
                     </div>
                     {selectionMode && (
@@ -492,7 +528,19 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
 }
 
 function OneDriveAuthWrapper({ onToken }: { onToken: (token: string) => void }) {
-  const { instance } = useMsal();
+  const { instance, accounts } = useMsal();
+
+  useEffect(() => {
+    // If we already have an active account session, silently acquire token
+    if (accounts.length > 0) {
+      instance.acquireTokenSilent({
+        scopes: ['Files.ReadWrite.All'],
+        account: accounts[0]
+      }).then((response) => {
+        if (response && response.accessToken) onToken(response.accessToken);
+      }).catch(e => console.error(e));
+    }
+  }, [instance, accounts, onToken]);
 
   const handleLogin = async () => {
     try {
@@ -517,16 +565,6 @@ function OneDriveAuthWrapper({ onToken }: { onToken: (token: string) => void }) 
   );
 }
 
-// MSAL configuration for OneDrive
-const msalConfig = {
-  auth: {
-    clientId: import.meta.env.VITE_MICROSOFT_CLIENT_ID || '',
-    authority: 'https://login.microsoftonline.com/common',
-    redirectUri: window.location.origin + '/OneWebApp/'
-  },
-  cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false }
-};
-
 export default function OneDrive() {
   const clientId = import.meta.env.VITE_MICROSOFT_CLIENT_ID;
 
@@ -541,11 +579,7 @@ export default function OneDrive() {
     );
   }
 
-  return (
-    <MsalProvider instance={new PublicClientApplication(msalConfig)}>
-      <OneDriveInner />
-    </MsalProvider>
-  );
+  return <OneDriveInner />;
 }
 
 function OneDriveInner() {

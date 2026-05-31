@@ -11,6 +11,9 @@ function GoogleDriveExplorer({ accessToken }: { accessToken: string }) {
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
+  // Main View Folder Stack
+  const [currentFolderStack, setCurrentFolderStack] = useState<{id: string, name: string}[]>([{id: 'root', name: 'My Drive'}]);
+
   // Custom Prompts
   type DialogState = {
     title: string;
@@ -28,12 +31,13 @@ function GoogleDriveExplorer({ accessToken }: { accessToken: string }) {
 
   useEffect(() => {
     fetchFiles();
-  }, [accessToken]);
+  }, [accessToken, currentFolderStack]);
 
   const fetchFiles = async () => {
     setLoading(true);
+    const currentFolderId = currentFolderStack[currentFolderStack.length - 1].id;
     try {
-      const res = await fetch('https://www.googleapis.com/drive/v3/files?fields=files(id,name,mimeType,size,modifiedTime,webViewLink,parents)&q=trashed=false', {
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files?fields=files(id,name,mimeType,size,modifiedTime,webViewLink,parents)&q='${currentFolderId}'+in+parents+and+trashed=false`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       const data = await res.json();
@@ -83,7 +87,12 @@ function GoogleDriveExplorer({ accessToken }: { accessToken: string }) {
     if (!file) return;
 
     setLoading(true);
-    const metadata = { name: file.name, mimeType: file.type || 'application/octet-stream' };
+    const currentFolderId = currentFolderStack[currentFolderStack.length - 1].id;
+    const metadata = { 
+      name: file.name, 
+      mimeType: file.type || 'application/octet-stream',
+      parents: [currentFolderId]
+    };
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
     form.append('file', file);
@@ -300,15 +309,32 @@ function GoogleDriveExplorer({ accessToken }: { accessToken: string }) {
           </div>
         </div>
 
+        <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '10px' }}>
+          {currentFolderStack.map((level, i) => (
+            <button 
+              key={level.id}
+              onClick={() => {
+                const newStack = currentFolderStack.slice(0, i + 1);
+                setCurrentFolderStack(newStack);
+                clearSelection();
+              }}
+              style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap' }}
+            >
+              {level.name} {i < currentFolderStack.length - 1 ? ' > ' : ''}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
           <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Syncing with Google Drive...</div>
         ) : (
           <div className="items-list">
             {files.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>No files found in Drive.</div>
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>No files found in this folder.</div>
             ) : (
               files.map(f => {
                 const isSelected = selectedItemIds.has(f.id);
+                const isFolder = f.mimeType === 'application/vnd.google-apps.folder';
                 return (
                   <div 
                     key={f.id} 
@@ -322,10 +348,19 @@ function GoogleDriveExplorer({ accessToken }: { accessToken: string }) {
                     onPointerDown={(e) => { if (e.button !== 2) handlePointerDown(f.id); }}
                     onPointerUp={handlePointerUp}
                     onPointerLeave={handlePointerUp}
-                    onClick={() => { if (selectionMode) toggleSelection(f.id); }}
+                    onClick={() => {
+                      if (selectionMode) {
+                        toggleSelection(f.id);
+                      } else if (isFolder) {
+                        setCurrentFolderStack([...currentFolderStack, { id: f.id, name: f.name }]);
+                        clearSelection();
+                      }
+                    }}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: '200px' }}>
-                      <span style={{ fontWeight: 600 }}>{f.name}</span>
+                      <span style={{ fontWeight: 600, color: isFolder ? 'var(--accent)' : 'var(--text-primary)' }}>
+                        {isFolder ? '📁 ' : ''}{f.name}
+                      </span>
                       <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{f.mimeType}</span>
                     </div>
                     {selectionMode && (
@@ -502,7 +537,7 @@ function GoogleAuthWrapper({ onToken }: { onToken: (token: string) => void }) {
 }
 
 export default function GoogleDrive() {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(() => sessionStorage.getItem('gdrive_token'));
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   if (!clientId) {
@@ -516,12 +551,17 @@ export default function GoogleDrive() {
     );
   }
 
+  const handleSetToken = (token: string) => {
+    sessionStorage.setItem('gdrive_token', token);
+    setAccessToken(token);
+  };
+
   return (
     <GoogleOAuthProvider clientId={clientId}>
       {accessToken ? (
         <GoogleDriveExplorer accessToken={accessToken} />
       ) : (
-        <GoogleAuthWrapper onToken={setAccessToken} />
+        <GoogleAuthWrapper onToken={handleSetToken} />
       )}
     </GoogleOAuthProvider>
   );

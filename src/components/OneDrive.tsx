@@ -385,7 +385,12 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
         )}
       </div>
 
-      {selectionMode && (
+      {selectionMode && (() => {
+        const hasFolderSelected = Array.from(selectedItemIds).some(id => {
+          const f = files.find(f => f.id === id);
+          return f && f.folder !== undefined;
+        });
+        return (
         <div style={{
           position: 'sticky', bottom: 0, marginTop: 'auto',
           backgroundColor: 'var(--bg-surface)', padding: '16px', 
@@ -397,15 +402,20 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
             {selectedItemIds.size === 1 && (
               <button className="btn-secondary" style={{ flex: '0 0 auto', padding: '10px 14px', fontSize: '13px' }} onClick={handleRenameSelected}>✏️ Rename</button>
             )}
-            <button className="btn-secondary" style={{ flex: '0 0 auto', padding: '10px 14px', fontSize: '13px' }} onClick={handleDownloadSelected}>⬇️ Download</button>
-            <button className="btn-primary" style={{ flex: '0 0 auto', padding: '10px 14px', fontSize: '13px' }} onClick={handleShareSelected}>🔗 Share</button>
-            <button className="btn-primary" style={{ flex: '0 0 auto', padding: '10px 14px', fontSize: '13px' }} onClick={handleMakeOffline}>💾 Make Offline</button>
+            {!hasFolderSelected && (
+              <>
+                <button className="btn-secondary" style={{ flex: '0 0 auto', padding: '10px 14px', fontSize: '13px' }} onClick={handleDownloadSelected}>⬇️ Download</button>
+                <button className="btn-primary" style={{ flex: '0 0 auto', padding: '10px 14px', fontSize: '13px' }} onClick={handleShareSelected}>🔗 Share</button>
+                <button className="btn-primary" style={{ flex: '0 0 auto', padding: '10px 14px', fontSize: '13px' }} onClick={handleMakeOffline}>💾 Make Offline</button>
+              </>
+            )}
             <button className="btn-secondary" style={{ flex: '0 0 auto', padding: '10px 14px', fontSize: '13px' }} onClick={openMovePicker}>➡️ Move</button>
             <button className="btn-secondary" style={{ flex: '0 0 auto', padding: '10px 14px', fontSize: '13px', color: '#ff4444' }} onClick={handleDeleteSelected}>🗑️ Delete</button>
             <button className="btn-secondary" style={{ flex: '0 0 auto', padding: '10px 14px', fontSize: '13px' }} onClick={clearSelection}>Cancel</button>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {dialog && (
         <div style={{

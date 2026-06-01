@@ -518,8 +518,10 @@ export default function Notes() {
   };
 
   // Toggle active note lock status
-  const handleToggleLock = async () => {
-    if (!selectedNote || !selectedNote.id) return;
+  const handleToggleLock = async (targetNote?: NoteRecord, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const noteToLock = targetNote || selectedNote;
+    if (!noteToLock || !noteToLock.id) return;
     
     const saltRec = await db.settings.get('vault_salt');
     if (!saltRec) {
@@ -527,32 +529,34 @@ export default function Notes() {
       return;
     }
 
-    const newLockedStatus = selectedNote.locked === 1 ? 0 : 1;
+    const newLockedStatus = noteToLock.locked === 1 ? 0 : 1;
     
     // Update local database record
-    await db.notes.update(selectedNote.id, {
+    await db.notes.update(noteToLock.id, {
       locked: newLockedStatus,
       lastModified: Date.now()
     });
 
-    // Update active React selected note state
-    setSelectedNote((prev) => {
-      if (!prev) return null;
-      return { ...prev, locked: newLockedStatus };
-    });
+    // Update active React selected note state if it's currently open
+    if (selectedNote && selectedNote.id === noteToLock.id) {
+      setSelectedNote((prev) => {
+        if (!prev) return null;
+        return { ...prev, locked: newLockedStatus };
+      });
+    }
 
     // If we just locked it, temporarily add it to unlockedNoteIds so the user can continue editing it
     if (newLockedStatus === 1) {
       setUnlockedNoteIds((prev) => {
         const next = new Set(prev);
-        next.add(selectedNote.id!);
+        next.add(noteToLock.id!);
         return next;
       });
     } else {
       // If we unlocked it, remove it from the session set
       setUnlockedNoteIds((prev) => {
         const next = new Set(prev);
-        next.delete(selectedNote.id!);
+        next.delete(noteToLock.id!);
         return next;
       });
     }
@@ -1005,8 +1009,8 @@ export default function Notes() {
     setSelectedNote({ ...newNote, id });
   };
 
-  const handleDeleteNote = async (id: number, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteNote = async (id: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this note?')) {
       await db.notes.delete(id);
       if (selectedNote?.id === id) {
@@ -1181,10 +1185,11 @@ export default function Notes() {
                     📌
                   </button>
                   <button 
-                    onClick={(e) => handleDeleteNote(note.id!, e)}
+                    onClick={(e) => handleToggleLock(note, e)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px' }}
+                    title={note.locked === 1 ? "Decrypt & Make Public" : "Lock Note"}
                   >
-                    🗑️
+                    {note.locked === 1 ? '🔓' : '🔒'}
                   </button>
                 </div>
               </div>
@@ -1442,16 +1447,12 @@ export default function Notes() {
               <div style={{ flexGrow: 1 }} />
 
               <button 
-                className={`toolbar-btn ${selectedNote.locked === 1 ? 'active' : ''}`}
-                onClick={handleToggleLock}
-                title={selectedNote.locked === 1 ? "Decrypt & Make Public" : "Lock with Master Password"}
-                style={{ marginRight: '4px' }}
+                className="toolbar-btn"
+                onClick={() => handleDeleteNote(selectedNote.id!)}
+                title="Delete Note"
+                style={{ marginRight: '4px', color: '#ff4444' }}
               >
-                {selectedNote.locked === 1 ? (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
-                )}
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
               </button>
             </div>
  

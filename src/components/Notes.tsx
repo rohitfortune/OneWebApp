@@ -1174,7 +1174,6 @@ export default function Notes() {
             >
               <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {note.locked === 1 && <span>🔒</span>}
                   <span>{note.title || 'Untitled Note'}</span>
                 </span>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -1189,7 +1188,7 @@ export default function Notes() {
                     style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px' }}
                     title={note.locked === 1 ? "Decrypt & Make Public" : "Lock Note"}
                   >
-                    {note.locked === 1 ? '🔓' : '🔒'}
+                    {note.locked === 1 ? '🔒' : '🔓'}
                   </button>
                 </div>
               </div>

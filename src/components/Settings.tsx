@@ -19,7 +19,7 @@ function GoogleBackupButton({ onBackup }: { onBackup: (token: string) => void })
   });
 
   return (
-    <button className="btn-secondary" onClick={() => login()}>
+    <button className="btn-primary" onClick={() => login()} style={{ backgroundColor: '#f97316', borderColor: '#ea580c', color: '#fff' }}>
       ☁️ Backup to Google Drive
     </button>
   );
@@ -33,7 +33,7 @@ function GoogleRestoreButton({ onRestore }: { onRestore: (token: string) => void
   });
 
   return (
-    <button className="btn-secondary" onClick={() => login()}>
+    <button className="btn-primary" onClick={() => login()} style={{ backgroundColor: '#f97316', borderColor: '#ea580c', color: '#fff' }}>
       ☁️ Restore from Google Drive
     </button>
   );
@@ -648,11 +648,11 @@ export default function Settings() {
           Export a zero-knowledge, AES-256 encrypted archive containing your entire local notes, settings, credentials vault, and parameters to store anywhere.
         </p>
         <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button className="btn-primary" onClick={handleDownloadBackup}>📥 Export Encrypted Backup</button>
+          <button className="btn-primary" onClick={handleDownloadBackup} style={{ backgroundColor: '#f97316', borderColor: '#ea580c', color: '#fff' }}>📥 Export Encrypted Backup</button>
           
           {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
             <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <GoogleBackupButton onBackup={handleUploadToGoogleDrive} />
                 <GoogleRestoreButton onRestore={handleRestoreFromGoogleDrive} />
               </div>
@@ -660,7 +660,7 @@ export default function Settings() {
           )}
 
           <input type="file" id="backup-restore-input" accept=".one" onChange={handleUploadBackup} style={{ display: 'none' }} />
-          <label htmlFor="backup-restore-input" className="btn-secondary" style={{ cursor: 'pointer' }}>
+          <label htmlFor="backup-restore-input" className="btn-primary" style={{ cursor: 'pointer', backgroundColor: '#f97316', borderColor: '#ea580c', color: '#fff' }}>
             📤 Restore from Backup File
           </label>
         </div>

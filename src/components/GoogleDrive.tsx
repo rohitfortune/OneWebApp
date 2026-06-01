@@ -628,7 +628,14 @@ export default function GoogleDrive() {
       localStorage.removeItem('gdrive_token');
     }
     setAccessToken(token);
+    window.dispatchEvent(new Event('gdrive_auth_changed'));
   };
+
+  useEffect(() => {
+    const handleAuthChange = () => setAccessToken(localStorage.getItem('gdrive_token'));
+    window.addEventListener('gdrive_auth_changed', handleAuthChange);
+    return () => window.removeEventListener('gdrive_auth_changed', handleAuthChange);
+  }, []);
 
   return (
     <GoogleOAuthProvider clientId={clientId}>

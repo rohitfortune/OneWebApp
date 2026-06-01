@@ -9,6 +9,7 @@ import {
 } from '../utils/crypto';
 import { isBiometricsAvailable, enrollLocalBiometrics } from '../utils/biometrics';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
+import { useMsal } from '@azure/msal-react';
 
 function GoogleBackupButton({ onBackup }: { onBackup: (token: string) => void }) {
   const login = useGoogleLogin({
@@ -34,6 +35,62 @@ function GoogleRestoreButton({ onRestore }: { onRestore: (token: string) => void
   return (
     <button className="btn-secondary" onClick={() => login()}>
       ☁️ Restore from Google Drive
+    </button>
+  );
+}
+
+function GoogleConnectButton() {
+  const [hasToken, setHasToken] = useState(() => !!localStorage.getItem('gdrive_token'));
+
+  useEffect(() => {
+    const handleStorage = () => setHasToken(!!localStorage.getItem('gdrive_token'));
+    window.addEventListener('gdrive_auth_changed', handleStorage);
+    return () => {
+      window.removeEventListener('gdrive_auth_changed', handleStorage);
+    };
+  }, []);
+
+  const login = useGoogleLogin({
+    onSuccess: (codeResponse) => {
+      localStorage.setItem('gdrive_token', codeResponse.access_token);
+      setHasToken(true);
+      window.dispatchEvent(new Event('gdrive_auth_changed'));
+    },
+    scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.appdata',
+  });
+
+  const handleLogout = () => {
+    localStorage.removeItem('gdrive_token');
+    setHasToken(false);
+    window.dispatchEvent(new Event('gdrive_auth_changed'));
+  };
+
+  return (
+    <button className={hasToken ? "btn-secondary" : "btn-primary"} onClick={hasToken ? handleLogout : () => login()} style={hasToken ? { borderColor: 'rgba(239, 68, 68, 0.5)', color: '#ef4444' } : {}}>
+      {hasToken ? "Logout Google Drive" : "☁️ Connect Google Drive"}
+    </button>
+  );
+}
+
+function OneDriveConnectButton() {
+  const { instance, accounts } = useMsal();
+  const isConnected = accounts.length > 0;
+
+  const handleLogin = async () => {
+    try {
+      await instance.loginRedirect({ scopes: ['Files.ReadWrite.All'] });
+    } catch(e) {
+      console.error(e);
+    }
+  };
+
+  const handleLogout = () => {
+    instance.logoutRedirect();
+  };
+
+  return (
+    <button className={isConnected ? "btn-secondary" : "btn-primary"} onClick={isConnected ? handleLogout : handleLogin} style={isConnected ? { borderColor: 'rgba(239, 68, 68, 0.5)', color: '#ef4444' } : {}}>
+      {isConnected ? "Logout Microsoft OneDrive" : "☁️ Connect Microsoft OneDrive"}
     </button>
   );
 }
@@ -606,6 +663,24 @@ export default function Settings() {
           <label htmlFor="backup-restore-input" className="btn-secondary" style={{ cursor: 'pointer' }}>
             📤 Restore from Backup File
           </label>
+        </div>
+      </div>
+
+      {/* Cloud Integrations */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-lg)', backgroundColor: 'var(--bg-surface)' }}>
+        <h2 style={{ fontFamily: 'var(--font-heading)' }}>☁️ Cloud Integrations</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '640px' }}>
+          Connect your cloud storage providers to seamlessly browse, open, and upload files directly from your workspace.
+        </p>
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+          {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+            <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+              <GoogleConnectButton />
+            </GoogleOAuthProvider>
+          )}
+          {import.meta.env.VITE_MICROSOFT_CLIENT_ID && (
+             <OneDriveConnectButton />
+          )}
         </div>
       </div>
 

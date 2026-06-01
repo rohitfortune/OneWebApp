@@ -465,26 +465,17 @@ export default function Settings() {
       const text = await downloadRes.text();
       
       let data;
-      if (text.trim().startsWith('{')) {
-        data = JSON.parse(text);
-        if (!window.confirm('Importing this legacy unencrypted cloud backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
-          return;
-        }
-        const key = await getEncryptionKeyForBackup();
-        if (!key) return;
-      } else {
-        const key = await getEncryptionKeyForBackup();
-        if (!key) return;
-        try {
-          const decrypted = await decryptPayload(text, key);
-          data = JSON.parse(decrypted);
-        } catch (err) {
-          setModalState({ type: 'error', message: 'Failed to decrypt cloud backup. Invalid master password or corrupt file.' });
-          return;
-        }
-        if (!window.confirm('Importing this encrypted cloud backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
-          return;
-        }
+      const key = await getEncryptionKeyForBackup();
+      if (!key) return;
+      try {
+        const decrypted = await decryptPayload(text, key);
+        data = JSON.parse(decrypted);
+      } catch (err) {
+        setModalState({ type: 'error', message: 'Failed to decrypt cloud backup. Invalid master password or corrupt file.' });
+        return;
+      }
+      if (!window.confirm('Importing this encrypted cloud backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
+        return;
       }
 
       if (!data.version || !data.vault) {
@@ -539,26 +530,17 @@ export default function Settings() {
       const file = files[0];
       const text = await file.text();
       let data;
-      if (text.trim().startsWith('{')) {
-        data = JSON.parse(text);
-        if (!window.confirm('Importing this legacy unencrypted backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
-          return;
-        }
-        const key = await getEncryptionKeyForBackup();
-        if (!key) return;
-      } else {
-        const key = await getEncryptionKeyForBackup();
-        if (!key) return;
-        try {
-          const decrypted = await decryptPayload(text, key);
-          data = JSON.parse(decrypted);
-        } catch (err) {
-          setModalState({ type: 'error', message: 'Failed to decrypt backup. Invalid master password or corrupt file.' });
-          return;
-        }
-        if (!window.confirm('Importing this encrypted backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
-          return;
-        }
+      const key = await getEncryptionKeyForBackup();
+      if (!key) return;
+      try {
+        const decrypted = await decryptPayload(text, key);
+        data = JSON.parse(decrypted);
+      } catch (err) {
+        setModalState({ type: 'error', message: 'Failed to decrypt backup. Invalid master password or corrupt file.' });
+        return;
+      }
+      if (!window.confirm('Importing this encrypted backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
+        return;
       }
 
       if (!data.version || !data.vault) {

@@ -9,6 +9,7 @@ import logoImg from './assets/logo.png';
 import { db } from './db/db';
 import { deriveMasterKey, decryptPayload, base64ToArrayBuffer } from './utils/crypto';
 import { verifyLocalBiometrics } from './utils/biometrics';
+import { triggerHapticLight } from './utils/haptics';
 
 
 type ActiveTab = 'notes' | 'passwords' | 'cards' | 'files' | 'settings' | 'gdrive' | 'onedrive';
@@ -21,9 +22,17 @@ export default function App() {
   const [isAppLocked, setIsAppLocked] = useState(false);
   const [globalLockPassword, setGlobalLockPassword] = useState('');
 
-
-
   useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const isClickable = target.closest('button') || target.closest('a') || target.closest('.item-card') || target.closest('input[type="checkbox"]') || target.closest('.mobile-menu-item');
+      if (isClickable) {
+        triggerHapticLight();
+      }
+    };
+    document.addEventListener('click', handleGlobalClick, true);
+    return () => document.removeEventListener('click', handleGlobalClick, true);
+  }, []);  useEffect(() => {
     const checkAppLock = async () => {
       const lockSetting = await db.settings.get('app_level_lock');
       const hasPwd = await db.settings.get('vault_salt');

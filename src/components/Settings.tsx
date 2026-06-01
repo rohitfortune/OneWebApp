@@ -110,39 +110,56 @@ export default function Settings() {
   // Bio fields
   const [bioUsername, setBioUsername] = useState('one-user');
 
-  const requireAuthForDestructiveAction = async (): Promise<boolean> => {
+  const getEncryptionKeyForBackup = async (): Promise<CryptoKey | null> => {
     const saltRec = await db.settings.get('vault_salt');
     const verifierRec = await db.settings.get('vault_verifier');
     
-    if (!saltRec || !verifierRec) return true;
+    if (!saltRec || !verifierRec) return null;
 
+    let key: CryptoKey | null = null;
     let authenticated = false;
+
     const bioCredRec = await db.settings.get('vault_biometric_credential');
     if (bioCredRec) {
       try {
-        authenticated = await verifyLocalBiometrics(bioCredRec.value);
-        if (authenticated) return true;
+        const success = await verifyLocalBiometrics(bioCredRec.value);
+        if (success) {
+          const storedKey = sessionStorage.getItem('vault_unlocked_session_key');
+          if (storedKey) {
+            const decoded = new Uint8Array(base64ToArrayBuffer(storedKey));
+            key = await window.crypto.subtle.importKey(
+              'raw',
+              decoded,
+              'AES-GCM',
+              false,
+              ['encrypt', 'decrypt']
+            );
+            authenticated = true;
+          }
+        }
       } catch (e) {
         console.error(e);
       }
     }
 
-    const pwd = window.prompt("Enter Master Password to authorize restoring a backup:");
-    if (!pwd) return false;
+    if (authenticated && key) return key;
+
+    const pwd = window.prompt("Enter Master Password to authorize this backup action:");
+    if (!pwd) return null;
 
     try {
       const salt = new Uint8Array(base64ToArrayBuffer(saltRec.value));
-      const key = await deriveMasterKey(pwd, salt);
-      const decryptedVerifier = await decryptPayload(verifierRec.value, key);
+      const derivedKey = await deriveMasterKey(pwd, salt);
+      const decryptedVerifier = await decryptPayload(verifierRec.value, derivedKey);
       if (decryptedVerifier === 'VALID_VAULT_KEY') {
-        return true;
+        return derivedKey;
       }
     } catch (e) {
       console.error(e);
     }
     
     alert('Invalid Master Password');
-    return false;
+    return null;
   };
 
   // Theme state
@@ -344,8 +361,12 @@ export default function Settings() {
       }))
     };
 
-    const str = JSON.stringify(backupBundle, null, 2);
-    const blob = new Blob([str], { type: 'application/json' });
+    const key = await getEncryptionKeyForBackup();
+    if (!key) return;
+
+    const str = JSON.stringify(backupBundle);
+    const encryptedStr = await encryptPayload(str, key);
+    const blob = new Blob([encryptedStr], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -388,11 +409,15 @@ export default function Settings() {
         }))
       };
 
-      const str = JSON.stringify(backupBundle, null, 2);
-      const blob = new Blob([str], { type: 'application/json' });
+      const key = await getEncryptionKeyForBackup();
+      if (!key) return;
+
+      const str = JSON.stringify(backupBundle);
+      const encryptedStr = await encryptPayload(str, key);
+      const blob = new Blob([encryptedStr], { type: 'text/plain' });
       const filename = `one_backup_${new Date().toISOString().split('T')[0]}.one`;
 
-      const metadata = { name: filename, mimeType: 'application/json', parents: ['appDataFolder'] };
+      const metadata = { name: filename, mimeType: 'text/plain', parents: ['appDataFolder'] };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
       form.append('file', blob);
@@ -437,18 +462,37 @@ export default function Settings() {
         return;
       }
       
-      const data = await downloadRes.json();
+      const text = await downloadRes.text();
+      
+      let data;
+      if (text.trim().startsWith('{')) {
+        data = JSON.parse(text);
+        if (!window.confirm('Importing this legacy unencrypted cloud backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
+          return;
+        }
+        const key = await getEncryptionKeyForBackup();
+        if (!key) return;
+      } else {
+        const key = await getEncryptionKeyForBackup();
+        if (!key) return;
+        try {
+          const decrypted = await decryptPayload(text, key);
+          data = JSON.parse(decrypted);
+        } catch (err) {
+          setModalState({ type: 'error', message: 'Failed to decrypt cloud backup. Invalid master password or corrupt file.' });
+          return;
+        }
+        if (!window.confirm('Importing this encrypted cloud backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
+          return;
+        }
+      }
 
       if (!data.version || !data.vault) {
         setModalState({ type: 'error', message: 'Invalid backup file format' });
         return;
       }
 
-      if (window.confirm('Importing this cloud backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
-        const authenticated = await requireAuthForDestructiveAction();
-        if (!authenticated) return;
-
-        await db.notes.clear();
+      await db.notes.clear();
         await db.passwords.clear();
         await db.creditCards.clear();
         await db.settings.clear();
@@ -494,18 +538,35 @@ export default function Settings() {
     try {
       const file = files[0];
       const text = await file.text();
-      const data = JSON.parse(text);
+      let data;
+      if (text.trim().startsWith('{')) {
+        data = JSON.parse(text);
+        if (!window.confirm('Importing this legacy unencrypted backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
+          return;
+        }
+        const key = await getEncryptionKeyForBackup();
+        if (!key) return;
+      } else {
+        const key = await getEncryptionKeyForBackup();
+        if (!key) return;
+        try {
+          const decrypted = await decryptPayload(text, key);
+          data = JSON.parse(decrypted);
+        } catch (err) {
+          setModalState({ type: 'error', message: 'Failed to decrypt backup. Invalid master password or corrupt file.' });
+          return;
+        }
+        if (!window.confirm('Importing this encrypted backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
+          return;
+        }
+      }
 
       if (!data.version || !data.vault) {
         setModalState({ type: 'error', message: 'Invalid backup file format' });
         return;
       }
 
-      if (window.confirm('Importing this backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
-        const authenticated = await requireAuthForDestructiveAction();
-        if (!authenticated) return;
-
-        await db.notes.clear();
+      await db.notes.clear();
         await db.passwords.clear();
         await db.creditCards.clear();
         await db.settings.clear();

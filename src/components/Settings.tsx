@@ -667,22 +667,24 @@ export default function Settings() {
       </div>
 
       {/* Cloud Integrations */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-lg)', backgroundColor: 'var(--bg-surface)' }}>
-        <h2 style={{ fontFamily: 'var(--font-heading)' }}>☁️ Cloud Integrations</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '640px' }}>
-          Connect your cloud storage providers to seamlessly browse, open, and upload files directly from your workspace.
-        </p>
-        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-          {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
-            <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-              <GoogleConnectButton />
-            </GoogleOAuthProvider>
-          )}
-          {import.meta.env.VITE_MICROSOFT_CLIENT_ID && (
-             <OneDriveConnectButton />
-          )}
+      {(import.meta.env.VITE_GOOGLE_CLIENT_ID || import.meta.env.VITE_MICROSOFT_CLIENT_ID) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-lg)', backgroundColor: 'var(--bg-surface)' }}>
+          <h2 style={{ fontFamily: 'var(--font-heading)' }}>☁️ Cloud Integrations</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '640px' }}>
+            Connect your cloud storage providers to seamlessly browse, open, and upload files directly from your workspace.
+          </p>
+          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+            {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+              <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+                <GoogleConnectButton />
+              </GoogleOAuthProvider>
+            )}
+            {import.meta.env.VITE_MICROSOFT_CLIENT_ID && (
+               <OneDriveConnectButton />
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
 
       {/* Factory Wipe settings */}

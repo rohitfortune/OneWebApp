@@ -531,6 +531,47 @@ export default function Notes() {
 
     const newLockedStatus = noteToLock.locked === 1 ? 0 : 1;
     
+    if (newLockedStatus === 0) {
+      // Trying to unlock/make public. We must authenticate!
+      let authenticated = false;
+      const bioCredRec = await db.settings.get('vault_biometric_credential');
+      if (bioCredRec) {
+        try {
+          authenticated = await verifyLocalBiometrics(bioCredRec.value);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      
+      if (!authenticated) {
+        const pwd = window.prompt("Enter Master Password to permanently unlock this note:");
+        if (!pwd) return; // user cancelled
+        
+        const verifierRec = await db.settings.get('vault_verifier');
+        if (saltRec && verifierRec) {
+          try {
+            const salt = new Uint8Array(base64ToArrayBuffer(saltRec.value));
+            const key = await deriveMasterKey(pwd, salt);
+            const decryptedVerifier = await decryptPayload(verifierRec.value, key);
+            if (decryptedVerifier === 'VALID_VAULT_KEY') {
+              authenticated = true;
+            } else {
+              alert('Invalid Master Password');
+              return;
+            }
+          } catch(err) {
+            alert('Invalid Master Password');
+            return;
+          }
+        }
+      }
+      
+      if (!authenticated) {
+        alert("Authentication failed. Cannot unlock note.");
+        return;
+      }
+    }
+    
     // Update local database record
     await db.notes.update(noteToLock.id, {
       locked: newLockedStatus,

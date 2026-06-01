@@ -5,9 +5,10 @@ import {
   encryptPayload, 
   decryptPayload, 
   arrayBufferToBase64,
+  base64ToArrayBuffer,
   generateRandomBytes
 } from '../utils/crypto';
-import { isBiometricsAvailable, enrollLocalBiometrics } from '../utils/biometrics';
+import { isBiometricsAvailable, enrollLocalBiometrics, verifyLocalBiometrics } from '../utils/biometrics';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import { useMsal } from '@azure/msal-react';
 
@@ -109,7 +110,40 @@ export default function Settings() {
   // Bio fields
   const [bioUsername, setBioUsername] = useState('one-user');
 
+  const requireAuthForDestructiveAction = async (): Promise<boolean> => {
+    const saltRec = await db.settings.get('vault_salt');
+    const verifierRec = await db.settings.get('vault_verifier');
+    
+    if (!saltRec || !verifierRec) return true;
 
+    let authenticated = false;
+    const bioCredRec = await db.settings.get('vault_biometric_credential');
+    if (bioCredRec) {
+      try {
+        authenticated = await verifyLocalBiometrics(bioCredRec.value);
+        if (authenticated) return true;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const pwd = window.prompt("Enter Master Password to authorize restoring a backup:");
+    if (!pwd) return false;
+
+    try {
+      const salt = new Uint8Array(base64ToArrayBuffer(saltRec.value));
+      const key = await deriveMasterKey(pwd, salt);
+      const decryptedVerifier = await decryptPayload(verifierRec.value, key);
+      if (decryptedVerifier === 'VALID_VAULT_KEY') {
+        return true;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    
+    alert('Invalid Master Password');
+    return false;
+  };
 
   // Theme state
   const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system');
@@ -411,6 +445,9 @@ export default function Settings() {
       }
 
       if (window.confirm('Importing this cloud backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
+        const authenticated = await requireAuthForDestructiveAction();
+        if (!authenticated) return;
+
         await db.notes.clear();
         await db.passwords.clear();
         await db.creditCards.clear();
@@ -465,6 +502,9 @@ export default function Settings() {
       }
 
       if (window.confirm('Importing this backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
+        const authenticated = await requireAuthForDestructiveAction();
+        if (!authenticated) return;
+
         await db.notes.clear();
         await db.passwords.clear();
         await db.creditCards.clear();

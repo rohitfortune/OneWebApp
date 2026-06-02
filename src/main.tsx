@@ -5,6 +5,8 @@ import App from './App.tsx'
 import { PublicClientApplication } from '@azure/msal-browser';
 import { MsalProvider } from '@azure/msal-react';
 
+import { SyncProvider } from './contexts/SyncContext.tsx';
+
 const msalConfig = {
   auth: {
     clientId: import.meta.env.VITE_MICROSOFT_CLIENT_ID || '',
@@ -20,7 +22,9 @@ msalInstance.initialize().then(() => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <MsalProvider instance={msalInstance}>
-        <App />
+        <SyncProvider>
+          <App />
+        </SyncProvider>
       </MsalProvider>
     </StrictMode>,
   )

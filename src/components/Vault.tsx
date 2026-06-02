@@ -40,8 +40,8 @@ export default function Vault({ onVaultLockChange, activeSubTab }: VaultProps) {
   }, [activeTab]);
 
   // Lists
-  const dbPasswords = useLiveQuery(() => db.passwords.toArray()) || [];
-  const dbCards = useLiveQuery(() => db.creditCards.toArray()) || [];
+  const dbPasswords = useLiveQuery(() => db.passwords.filter(p => p.deleted !== 1).toArray()) || [];
+  const dbCards = useLiveQuery(() => db.creditCards.filter(c => c.deleted !== 1).toArray()) || [];
 
   const [decryptedPasswords, setDecryptedPasswords] = useState<any[]>([]);
   const [decryptedCards, setDecryptedCards] = useState<any[]>([]);
@@ -314,9 +314,9 @@ export default function Vault({ onVaultLockChange, activeSubTab }: VaultProps) {
   const handleDeleteItem = async (uuid: string) => {
     if (window.confirm('Delete this item permanently from your vault?')) {
       if (activeTab === 'passwords') {
-        await db.passwords.delete(uuid);
+        await db.passwords.update(uuid, { deleted: 1, lastModified: Date.now() });
       } else {
-        await db.creditCards.delete(uuid);
+        await db.creditCards.update(uuid, { deleted: 1, lastModified: Date.now() });
       }
       setSelectedItem(null);
     }

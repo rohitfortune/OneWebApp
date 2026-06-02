@@ -249,6 +249,7 @@ function GoogleDriveExplorer({ accessToken, onLogout }: { accessToken: string, o
       const blob = await downloadFileBlob(file);
       if (blob) {
         const record: FileRecord = {
+          uuid: crypto.randomUUID(),
           displayName: file.name,
           mimeType: file.mimeType || 'application/octet-stream',
           blob: blob,

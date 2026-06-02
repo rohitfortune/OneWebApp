@@ -4,7 +4,7 @@ import { db, type NoteRecord, type DrawingPath, type Point } from '../db/db';
 import { deriveMasterKey, decryptPayload, base64ToArrayBuffer } from '../utils/crypto';
 import { verifyLocalBiometrics } from '../utils/biometrics';
 export default function Notes() {
-  const notes: NoteRecord[] = useLiveQuery(() => db.notes.reverse().sortBy('lastModified')) || [];
+  const notes: NoteRecord[] = useLiveQuery(() => db.notes.filter(n => n.deleted !== 1).reverse().sortBy('lastModified')) || [];
   const [selectedNote, setSelectedNote] = useState<NoteRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -1040,6 +1040,7 @@ export default function Notes() {
 
   const handleCreateNote = async () => {
     const newNote: NoteRecord = {
+      uuid: crypto.randomUUID(),
       title: 'Untitled Note',
       content: '',
       paths: [],
@@ -1053,7 +1054,7 @@ export default function Notes() {
   const handleDeleteNote = async (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this note?')) {
-      await db.notes.delete(id);
+      await db.notes.update(id, { deleted: 1, lastModified: Date.now() });
       if (selectedNote?.id === id) {
         setSelectedNote(null);
       }

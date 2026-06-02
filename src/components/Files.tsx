@@ -4,8 +4,8 @@ import { db, type FileRecord, type FolderRecord } from '../db/db';
 import JSZip from 'jszip';
 
 export default function Files() {
-  const allFiles = useLiveQuery(() => db.localFiles.toArray()) || [];
-  const allFolders = useLiveQuery(() => db.localFolders.toArray()) || [];
+  const allFiles = useLiveQuery(() => db.localFiles.filter(f => f.deleted !== 1).toArray()) || [];
+  const allFolders = useLiveQuery(() => db.localFolders.filter(f => f.deleted !== 1).toArray()) || [];
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showMenu, setShowMenu] = useState(false);
@@ -129,6 +129,7 @@ export default function Files() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const record: FileRecord = {
+        uuid: crypto.randomUUID(),
         displayName: file.name,
         mimeType: file.type || 'application/octet-stream',
         blob: file,
@@ -155,6 +156,7 @@ export default function Files() {
       onConfirm: async (name) => {
         if (name && name.trim()) {
           await db.localFolders.add({ 
+            uuid: crypto.randomUUID(),
             name: name.trim(), 
             parentId: currentFolderId, 
             lastModified: Date.now() 
@@ -214,7 +216,7 @@ export default function Files() {
       type: 'confirm',
       confirmText: 'Delete',
       onConfirm: async () => {
-        await db.localFiles.delete(id);
+        await db.localFiles.update(id, { deleted: 1, blob: new Blob([]), lastModified: Date.now() });
         setSelectedItemIds(prev => {
           const newSet = new Set(prev);
           newSet.delete(`file-${id}`);
@@ -243,14 +245,14 @@ export default function Files() {
           const subFiles = allFiles.filter(f => f.folderId === folderId);
           for (const sf of subFolders) await deleteRecursively(sf.id!);
           for (const file of subFiles) {
-            await db.localFiles.delete(file.id!);
+            await db.localFiles.update(file.id!, { deleted: 1, blob: new Blob([]), lastModified: Date.now() });
             setSelectedItemIds(prev => {
               const newSet = new Set(prev);
               newSet.delete(`file-${file.id}`);
               return newSet;
             });
           }
-          await db.localFolders.delete(folderId);
+          await db.localFolders.update(folderId, { deleted: 1, lastModified: Date.now() });
           setSelectedItemIds(prev => {
             const newSet = new Set(prev);
             newSet.delete(`folder-${folderId}`);
@@ -509,14 +511,14 @@ export default function Files() {
           const id = parseInt(parts[1]);
           
           if (type === 'file') {
-            await db.localFiles.delete(id);
+            await db.localFiles.update(id, { deleted: 1, blob: new Blob([]), lastModified: Date.now() });
           } else if (type === 'folder') {
             const deleteRecursively = async (folderId: number) => {
               const subFolders = allFolders.filter(f => f.parentId === folderId);
               const subFiles = allFiles.filter(f => f.folderId === folderId);
               for (const sf of subFolders) await deleteRecursively(sf.id!);
-              for (const file of subFiles) await db.localFiles.delete(file.id!);
-              await db.localFolders.delete(folderId);
+              for (const file of subFiles) await db.localFiles.update(file.id!, { deleted: 1, blob: new Blob([]), lastModified: Date.now() });
+              await db.localFolders.update(folderId, { deleted: 1, lastModified: Date.now() });
             };
             await deleteRecursively(id);
           }

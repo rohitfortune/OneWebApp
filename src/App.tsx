@@ -5,11 +5,13 @@ import Files from './components/Files';
 import Settings from './components/Settings';
 import GoogleDrive from './components/GoogleDrive';
 import OneDrive from './components/OneDrive';
+import SyncButton from './components/SyncButton';
 import logoImg from './assets/logo.png';
 import { db } from './db/db';
 import { deriveMasterKey, decryptPayload, base64ToArrayBuffer } from './utils/crypto';
 import { verifyLocalBiometrics } from './utils/biometrics';
 import { triggerHapticLight } from './utils/haptics';
+import { useSyncContext } from './contexts/SyncContext';
 
 
 type ActiveTab = 'notes' | 'passwords' | 'cards' | 'files' | 'settings' | 'gdrive' | 'onedrive';
@@ -22,6 +24,8 @@ export default function App() {
   const [isAppLocked, setIsAppLocked] = useState(false);
   const [globalLockPassword, setGlobalLockPassword] = useState('');
 
+  const { triggerAutoSync } = useSyncContext();
+
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -30,9 +34,19 @@ export default function App() {
         triggerHapticLight();
       }
     };
+    
+    const handleDbChange = () => {
+      triggerAutoSync();
+    };
+
     document.addEventListener('click', handleGlobalClick, true);
-    return () => document.removeEventListener('click', handleGlobalClick, true);
-  }, []);  useEffect(() => {
+    window.addEventListener('one-vault-updated', handleDbChange);
+    
+    return () => {
+      document.removeEventListener('click', handleGlobalClick, true);
+      window.removeEventListener('one-vault-updated', handleDbChange);
+    };
+  }, [triggerAutoSync]);  useEffect(() => {
     const checkAppLock = async () => {
       const lockSetting = await db.settings.get('app_level_lock');
       const hasPwd = await db.settings.get('vault_salt');
@@ -269,15 +283,18 @@ export default function App() {
 
       {/* Main Content Workspace */}
       <main className="app-content">
-        <header className="content-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+        <header className="content-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+          <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: 0 }}>
+            <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)} style={{ flexShrink: 0 }}>
               ☰
             </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <h1 className="header-title" style={{ margin: 0 }}>{getScreenTitle()}</h1>
-              <div id="header-actions" style={{ display: 'flex', alignItems: 'center' }}></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+              <h1 className="header-title" style={{ margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>{getScreenTitle()}</h1>
+              <div id="header-actions" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}></div>
             </div>
+          </div>
+          <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingRight: '16px', flexShrink: 0 }}>
+            <SyncButton />
           </div>
         </header>
 

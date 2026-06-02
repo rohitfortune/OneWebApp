@@ -1,6 +1,8 @@
 /**
  * Zero-Knowledge Cryptography helpers using the native Web Cryptography API.
  */
+import { db } from '../db/db';
+import { verifyLocalBiometrics } from './biometrics';
 
 // Helper: Convert string to Uint8Array
 export function stringToBytes(str: string): Uint8Array {
@@ -117,4 +119,61 @@ export async function decryptPayload(encryptedBase64: string, key: CryptoKey): P
   );
 
   return bytesToString(new Uint8Array(decryptedBuffer));
+}
+
+/**
+ * Global helper to retrieve the vault encryption key, prompting for biometric or password auth if needed.
+ */
+export async function getEncryptionKeyForBackup(silent: boolean = false): Promise<CryptoKey | null> {
+  const saltRec = await db.settings.get('vault_salt');
+  const verifierRec = await db.settings.get('vault_verifier');
+  
+  if (!saltRec || !verifierRec) return null;
+
+  let key: CryptoKey | null = null;
+  let authenticated = false;
+
+  const bioCredRec = await db.settings.get('vault_biometric_credential');
+  if (bioCredRec) {
+    try {
+      const success = await verifyLocalBiometrics(bioCredRec.value);
+      if (success) {
+        const storedKey = sessionStorage.getItem('vault_unlocked_session_key');
+        if (storedKey) {
+          const decoded = new Uint8Array(base64ToArrayBuffer(storedKey));
+          key = await window.crypto.subtle.importKey(
+            'raw',
+            decoded,
+            'AES-GCM',
+            false,
+            ['encrypt', 'decrypt']
+          );
+          authenticated = true;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  if (authenticated && key) return key;
+  
+  if (silent) return null;
+
+  const pwd = window.prompt("Enter Master Password to authorize this cloud sync action:");
+  if (!pwd) return null;
+
+  try {
+    const salt = new Uint8Array(base64ToArrayBuffer(saltRec.value));
+    const derivedKey = await deriveMasterKey(pwd, salt);
+    const decryptedVerifier = await decryptPayload(verifierRec.value, derivedKey);
+    if (decryptedVerifier === 'VALID_VAULT_KEY') {
+      return derivedKey;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  
+  alert('Invalid Master Password');
+  return null;
 }

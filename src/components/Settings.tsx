@@ -5,40 +5,12 @@ import {
   encryptPayload, 
   decryptPayload, 
   arrayBufferToBase64,
-  base64ToArrayBuffer,
-  generateRandomBytes
+  generateRandomBytes,
+  getEncryptionKeyForBackup
 } from '../utils/crypto';
-import { isBiometricsAvailable, enrollLocalBiometrics, verifyLocalBiometrics } from '../utils/biometrics';
+import { isBiometricsAvailable, enrollLocalBiometrics } from '../utils/biometrics';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import { useMsal } from '@azure/msal-react';
-
-function GoogleBackupButton({ onBackup }: { onBackup: (token: string) => void }) {
-  const login = useGoogleLogin({
-    onSuccess: (codeResponse) => onBackup(codeResponse.access_token),
-    scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.appdata',
-    onError: (error) => alert('Login Failed: ' + error)
-  });
-
-  return (
-    <button className="btn-primary" onClick={() => login()} style={{ backgroundColor: '#f97316', borderColor: '#ea580c', color: '#fff' }}>
-      ☁️ Backup to Google Drive
-    </button>
-  );
-}
-
-function GoogleRestoreButton({ onRestore }: { onRestore: (token: string) => void }) {
-  const login = useGoogleLogin({
-    onSuccess: (codeResponse) => onRestore(codeResponse.access_token),
-    scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.appdata',
-    onError: (error) => alert('Login Failed: ' + error)
-  });
-
-  return (
-    <button className="btn-primary" onClick={() => login()} style={{ backgroundColor: '#f97316', borderColor: '#ea580c', color: '#fff' }}>
-      ☁️ Restore from Google Drive
-    </button>
-  );
-}
 
 function GoogleConnectButton() {
   const [hasToken, setHasToken] = useState(() => !!localStorage.getItem('gdrive_token'));
@@ -110,57 +82,7 @@ export default function Settings() {
   // Bio fields
   const [bioUsername, setBioUsername] = useState('one-user');
 
-  const getEncryptionKeyForBackup = async (): Promise<CryptoKey | null> => {
-    const saltRec = await db.settings.get('vault_salt');
-    const verifierRec = await db.settings.get('vault_verifier');
-    
-    if (!saltRec || !verifierRec) return null;
 
-    let key: CryptoKey | null = null;
-    let authenticated = false;
-
-    const bioCredRec = await db.settings.get('vault_biometric_credential');
-    if (bioCredRec) {
-      try {
-        const success = await verifyLocalBiometrics(bioCredRec.value);
-        if (success) {
-          const storedKey = sessionStorage.getItem('vault_unlocked_session_key');
-          if (storedKey) {
-            const decoded = new Uint8Array(base64ToArrayBuffer(storedKey));
-            key = await window.crypto.subtle.importKey(
-              'raw',
-              decoded,
-              'AES-GCM',
-              false,
-              ['encrypt', 'decrypt']
-            );
-            authenticated = true;
-          }
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    if (authenticated && key) return key;
-
-    const pwd = window.prompt("Enter Master Password to authorize this backup action:");
-    if (!pwd) return null;
-
-    try {
-      const salt = new Uint8Array(base64ToArrayBuffer(saltRec.value));
-      const derivedKey = await deriveMasterKey(pwd, salt);
-      const decryptedVerifier = await decryptPayload(verifierRec.value, derivedKey);
-      if (decryptedVerifier === 'VALID_VAULT_KEY') {
-        return derivedKey;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    
-    alert('Invalid Master Password');
-    return null;
-  };
 
   // Theme state
   const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system');
@@ -379,147 +301,7 @@ export default function Settings() {
     setModalState({ type: 'success', message: 'Encrypted secure backup successfully created and downloaded!' });
   };
 
-  const handleUploadToGoogleDrive = async (accessToken: string) => {
-    try {
-      const saltRec = await db.settings.get('vault_salt');
-      const verifierRec = await db.settings.get('vault_verifier');
-      if (!saltRec || !verifierRec) {
-        setModalState({ type: 'error', message: 'Please set up your master password vault before exporting.' });
-        return;
-      }
 
-      const notes = await db.notes.toArray();
-      const passwords = await db.passwords.toArray();
-      const cards = await db.creditCards.toArray();
-
-      const backupBundle = {
-        version: 1,
-        createdAt: Date.now(),
-        vault: {
-          salt: saltRec.value,
-          verifier: verifierRec.value,
-          passwords,
-          cards
-        },
-        notes: notes.map(n => ({
-          title: n.title,
-          content: n.content,
-          paths: n.paths,
-          pinned: n.pinned
-        }))
-      };
-
-      const key = await getEncryptionKeyForBackup();
-      if (!key) return;
-
-      const str = JSON.stringify(backupBundle);
-      const encryptedStr = await encryptPayload(str, key);
-      const blob = new Blob([encryptedStr], { type: 'text/plain' });
-      const filename = `one_backup_${new Date().toISOString().split('T')[0]}.one`;
-
-      const metadata = { name: filename, mimeType: 'text/plain', parents: ['appDataFolder'] };
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      form.append('file', blob);
-
-      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: form
-      });
-      
-      if (res.ok) {
-        setModalState({ type: 'success', message: 'Encrypted secure backup successfully uploaded to your hidden Google Drive AppData folder!' });
-      } else {
-        setModalState({ type: 'error', message: 'Upload failed: ' + await res.text() });
-      }
-    } catch (e) {
-      console.error(e);
-      setModalState({ type: 'error', message: 'Error uploading to Google Drive' });
-    }
-  };
-
-  const handleRestoreFromGoogleDrive = async (accessToken: string) => {
-    try {
-      const listRes = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name contains "one_backup_"&orderBy=modifiedTime desc', {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-      const listData = await listRes.json();
-      
-      if (!listData.files || listData.files.length === 0) {
-        setModalState({ type: 'error', message: 'No backup files found in your Google Drive AppData folder.' });
-        return;
-      }
-      
-      const latestFile = listData.files[0];
-      
-      const downloadRes = await fetch(`https://www.googleapis.com/drive/v3/files/${latestFile.id}?alt=media`, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-      
-      if (!downloadRes.ok) {
-        setModalState({ type: 'error', message: 'Failed to download the backup file.' });
-        return;
-      }
-      
-      const text = await downloadRes.text();
-      
-      let data;
-      const key = await getEncryptionKeyForBackup();
-      if (!key) return;
-      try {
-        const decrypted = await decryptPayload(text, key);
-        data = JSON.parse(decrypted);
-      } catch (err) {
-        setModalState({ type: 'error', message: 'Failed to decrypt cloud backup. Invalid master password or corrupt file.' });
-        return;
-      }
-      if (!window.confirm('Importing this encrypted cloud backup will overwrite your existing local notes, settings, and vault credentials. Proceed?')) {
-        return;
-      }
-
-      if (!data.version || !data.vault) {
-        setModalState({ type: 'error', message: 'Invalid backup file format' });
-        return;
-      }
-
-      await db.notes.clear();
-        await db.passwords.clear();
-        await db.creditCards.clear();
-        await db.settings.clear();
-
-        await db.settings.put({ key: 'vault_salt', value: data.vault.salt });
-        await db.settings.put({ key: 'vault_verifier', value: data.vault.verifier });
-
-        for (const n of data.notes) {
-          await db.notes.add({
-            title: n.title,
-            content: n.content,
-            paths: n.paths,
-            pinned: n.pinned,
-            lastModified: Date.now()
-          });
-        }
-
-        for (const p of data.vault.passwords) {
-          await db.passwords.put(p);
-        }
-
-        for (const c of data.vault.cards) {
-          await db.creditCards.put(c);
-        }
-
-        setModalState({
-          type: 'success',
-          message: 'Cloud Backup successfully imported! Please refresh the page to reload settings.',
-          action: () => window.location.reload()
-        });
-      }
-    } catch (e) {
-      console.error(e);
-      setModalState({ type: 'error', message: 'Error restoring from Google Drive' });
-    }
-  };
 
   // Restore logic
   const handleUploadBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -560,6 +342,7 @@ export default function Settings() {
         // Restore Notes
         for (const n of data.notes) {
           await db.notes.add({
+            uuid: n.uuid || crypto.randomUUID(),
             title: n.title,
             content: n.content,
             paths: n.paths,
@@ -583,8 +366,8 @@ export default function Settings() {
           message: 'Backup successfully imported! Please refresh the page to reload settings.',
           action: () => window.location.reload()
         });
-      }
-    } catch {
+    } catch (e) {
+      console.error(e);
       setModalState({ type: 'error', message: 'Error parsing backup file' });
     }
   };
@@ -733,20 +516,19 @@ export default function Settings() {
         <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
           <button className="btn-primary" onClick={handleDownloadBackup} style={{ backgroundColor: '#f97316', borderColor: '#ea580c', color: '#fff' }}>📥 Export Encrypted Backup</button>
           
-          {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
-            <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <GoogleBackupButton onBackup={handleUploadToGoogleDrive} />
-                <GoogleRestoreButton onRestore={handleRestoreFromGoogleDrive} />
-              </div>
-            </GoogleOAuthProvider>
-          )}
-
           <input type="file" id="backup-restore-input" accept=".one" onChange={handleUploadBackup} style={{ display: 'none' }} />
           <label htmlFor="backup-restore-input" className="btn-primary" style={{ cursor: 'pointer', backgroundColor: '#f97316', borderColor: '#ea580c', color: '#fff' }}>
             📤 Restore from Backup File
           </label>
         </div>
+      </div>
+
+      {/* Cloud Auto-Sync Info */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-lg)', backgroundColor: 'var(--bg-surface)' }}>
+        <h2 style={{ fontFamily: 'var(--font-heading)' }}>☁️ Hybrid Cloud Auto-Sync (OneDrive)</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '640px' }}>
+          Your vault is securely synced to Microsoft OneDrive using a zero-knowledge incremental sync engine. It automatically pushes changes whenever you edit notes, files, or passwords. You can also manually push or pull using the Sync Button on the top right.
+        </p>
       </div>
 
       {/* Cloud Integrations */}

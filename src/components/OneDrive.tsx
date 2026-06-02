@@ -231,6 +231,7 @@ function OneDriveExplorer({ accessToken }: { accessToken: string }) {
       const blob = await downloadFileBlob(file);
       if (blob) {
         const record: FileRecord = {
+          uuid: crypto.randomUUID(),
           displayName: file.name,
           mimeType: file.file?.mimeType || 'application/octet-stream',
           blob: blob,

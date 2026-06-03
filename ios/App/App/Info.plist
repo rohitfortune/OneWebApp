@@ -47,5 +47,7 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>One Web requires Face ID to securely authenticate and unlock your private notes.</string>
 </dict>
 </plist>

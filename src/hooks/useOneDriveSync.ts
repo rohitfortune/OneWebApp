@@ -95,6 +95,9 @@ export function useOneDriveSync() {
   };
 
   const runOneDriveSync = useCallback(async (silent = false) => {
+    // If trying to sync silently in the background but we aren't logged in, abort immediately.
+    if (silent && accounts.length === 0) return;
+    
     if (isSyncing) return;
     setIsSyncing(true);
     setSyncStatus('Starting Sync...');
@@ -290,6 +293,8 @@ export function useOneDriveSync() {
   }, [isSyncing]);
 
   const triggerAutoSync = useCallback(() => {
+    if (accounts.length === 0) return; // Don't even debounce if not logged in
+
     // Basic debounce logic (3 seconds) to prevent spamming cloud
     if ((window as any)._syncDebounceTimer) {
       clearTimeout((window as any)._syncDebounceTimer);
@@ -297,7 +302,7 @@ export function useOneDriveSync() {
     (window as any)._syncDebounceTimer = setTimeout(() => {
       runOneDriveSync(true); // silent
     }, 3000);
-  }, [runOneDriveSync]);
+  }, [runOneDriveSync, accounts]);
 
   const restoreFromOneDrive = useCallback(async () => {
      await runOneDriveSync(false);

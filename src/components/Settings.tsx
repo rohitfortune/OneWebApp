@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../db/db';
+import { Capacitor } from '@capacitor/core';
 import { 
   deriveMasterKey, 
   encryptPayload, 
@@ -493,7 +494,11 @@ export default function Settings() {
         </p>
         
         {!isBioAvailable ? (
-          <span style={{ color: '#ef4444', fontWeight: 600, fontSize: '13px' }}>⚠️ Local Biometric Authenticator is not supported on this browser or requires an SSL/HTTPS connection.</span>
+          <span style={{ color: '#ef4444', fontWeight: 600, fontSize: '13px' }}>
+            {Capacitor.isNativePlatform() 
+              ? '⚠️ Biometric authentication (Face ID / Touch ID / Fingerprint) is not enrolled or supported on this device. Please check your OS settings.'
+              : '⚠️ Local Biometric Authenticator is not supported on this browser or requires an SSL/HTTPS connection.'}
+          </span>
         ) : isBioEnrolled ? (
           <div>
             <span style={{ color: '#10b981', fontWeight: 600, fontSize: '13px', display: 'block', marginBottom: '12px' }}>✓ Biometrics enrolled and active on this device.</span>

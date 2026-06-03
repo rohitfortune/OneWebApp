@@ -1368,26 +1368,41 @@ export default function Notes() {
                     </div>
                   ) : isDrawingMode ? (
                     <>
-                      <input 
-                        type="color" 
-                        value={strokeColor} 
-                        onChange={(e) => {
-                          setStrokeColor(e.target.value);
-                          setIsEraser(false);
-                        }} 
+                      <label 
+                        title="Brush Color"
                         style={{ 
+                          cursor: 'pointer', 
+                          opacity: isEraser ? 0.4 : 1, 
+                          position: 'relative', 
+                          display: 'inline-block', 
                           width: '32px', 
                           height: '32px', 
-                          border: 'none', 
-                          cursor: 'pointer', 
-                          borderRadius: '4px', 
-                          backgroundColor: 'transparent',
-                          opacity: isEraser ? 0.4 : 1,
+                          borderRadius: '50%', 
+                          backgroundColor: strokeColor, 
+                          border: '2px solid var(--border)', 
+                          flexShrink: 0,
                           transition: 'opacity 0.2s'
                         }}
-                        disabled={isEraser}
-                        title="Brush Color"
-                      />
+                      >
+                        <input 
+                          type="color" 
+                          value={strokeColor} 
+                          onChange={(e) => {
+                            setStrokeColor(e.target.value);
+                            setIsEraser(false);
+                          }} 
+                          disabled={isEraser}
+                          style={{ 
+                            opacity: 0, 
+                            position: 'absolute', 
+                            width: '100%', 
+                            height: '100%', 
+                            cursor: 'pointer', 
+                            top: 0, 
+                            left: 0 
+                          }}
+                        />
+                      </label>
                       <button 
                         className={`toolbar-btn ${isEraser ? 'active' : ''}`} 
                         onClick={() => setIsEraser(!isEraser)}

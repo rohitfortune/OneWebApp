@@ -128,9 +128,19 @@ export function useOneDriveSync() {
           if (saltRec && backupBundle.vault && saltRec.value !== backupBundle.vault.salt) {
              throw new Error("Vault credentials mismatch.");
           }
+        } else if (dbRes.status === 404) {
+          console.log("No cloud backup exists yet. Creating a new one.");
+        } else {
+          throw new Error(`Failed to fetch cloud backup: ${dbRes.statusText}`);
         }
-      } catch (e) {
-        console.warn('No valid cloud state found or mismatch, proceeding with local push only.');
+      } catch (e: any) {
+        console.error('Cloud state fetch/decryption failed:', e);
+        if (!silent) {
+          alert('Sync aborted: The cloud backup could not be read. It is likely encrypted with a different Master Password. Please ensure all devices use the exact same Master Password.');
+        }
+        setIsSyncing(false);
+        setSyncStatus('');
+        return; // ABORT THE SYNC!
       }
 
       setSyncStatus('Merging State (Merge-On-Sync)...');

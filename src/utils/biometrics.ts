@@ -1,11 +1,24 @@
 /**
  * WebAuthn (Biometrics / Touch ID / Face ID) local verification helpers.
+ * Hybrid implementation: uses Capgo Native Biometric plugin on iOS/Android, and WebAuthn on Web.
  */
 
 import { generateRandomBytes, arrayBufferToBase64 } from './crypto';
+import { Capacitor } from '@capacitor/core';
+import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 
 // Check if biometrics (Platform Authenticator) is supported by device/browser
 export async function isBiometricsAvailable(): Promise<boolean> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const result = await NativeBiometric.isAvailable();
+      return result.isAvailable;
+    } catch (e) {
+      console.warn("Native Biometric unavailable:", e);
+      return false;
+    }
+  }
+
   if (!window.PublicKeyCredential) return false;
   
   try {
@@ -20,6 +33,16 @@ export async function isBiometricsAvailable(): Promise<boolean> {
  * Returns the Credential ID as a base64 string on success.
  */
 export async function enrollLocalBiometrics(username: string): Promise<string> {
+  if (Capacitor.isNativePlatform()) {
+    // Native apps don't generate cryptographic credentials to enroll. They rely on the OS.
+    // We just trigger a verify prompt to ensure they actually are the owner.
+    await NativeBiometric.verifyIdentity({
+      reason: "Register your fingerprint or face",
+      title: "Enroll Biometrics"
+    });
+    return "NATIVE_BIOMETRIC_ENROLLED";
+  }
+
   const challenge = generateRandomBytes(32);
   const userId = generateRandomBytes(16);
 
@@ -68,6 +91,19 @@ export async function enrollLocalBiometrics(username: string): Promise<string> {
  * Validates biometrics using a previously enrolled Credential ID.
  */
 export async function verifyLocalBiometrics(credentialIdBase64: string): Promise<boolean> {
+  if (Capacitor.isNativePlatform() || credentialIdBase64 === "NATIVE_BIOMETRIC_ENROLLED") {
+    try {
+      await NativeBiometric.verifyIdentity({
+        reason: "Unlock your secure vault",
+        title: "Vault Login"
+      });
+      return true;
+    } catch (e) {
+      console.warn("Native biometric verification failed or cancelled:", e);
+      return false;
+    }
+  }
+
   const challenge = generateRandomBytes(32);
   const rawId = new Uint8Array(challenge.buffer as ArrayBuffer); // simple conversion for challenge
 

@@ -154,11 +154,11 @@ export default function App() {
   const getScreenTitle = () => {
     switch (activeTab) {
       case 'notes':
-        return 'Personal Notes & Sketches';
+        return 'Notes';
       case 'passwords':
-        return isVaultLocked ? 'Secure Passwords Vault' : 'Passwords Vault';
+        return 'Passwords';
       case 'cards':
-        return isVaultLocked ? 'Secure Cards Vault' : 'Cards Vault';
+        return 'Cards';
       case 'files':
         return 'Files';
       case 'settings':
@@ -294,7 +294,7 @@ export default function App() {
             </div>
           </div>
           <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingRight: '16px', flexShrink: 0 }}>
-            <SyncButton />
+            {activeTab !== 'gdrive' && activeTab !== 'onedrive' && <SyncButton />}
           </div>
         </header>
 

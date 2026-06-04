@@ -23,6 +23,7 @@ export default function App() {
   const [appLockEnabled, setAppLockEnabled] = useState(false);
   const [isAppLocked, setIsAppLocked] = useState(false);
   const [globalLockPassword, setGlobalLockPassword] = useState('');
+  const [isPrivacyScreenActive, setIsPrivacyScreenActive] = useState(false);
 
   const { triggerAutoSync } = useSyncContext();
 
@@ -60,15 +61,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!appLockEnabled) return;
-
+    // Implement PWA Privacy Screen for Web (Native apps already use the Capacitor plugin)
+    const isNative = (window as any).Capacitor?.isNativePlatform?.();
+    
     let hiddenTime: number | null = null;
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         hiddenTime = Date.now();
+        if (!isNative) setIsPrivacyScreenActive(true);
       } else if (document.visibilityState === 'visible') {
-        if (hiddenTime && Date.now() - hiddenTime > 60000) {
+        if (!isNative) setIsPrivacyScreenActive(false);
+        if (appLockEnabled && hiddenTime && Date.now() - hiddenTime > 60000) {
           setIsAppLocked(true);
           setIsVaultLocked(true);
         }
@@ -200,6 +204,13 @@ export default function App() {
 
   return (
     <div className="app-container" data-vault-theme={isVaultThemeActive ? 'true' : 'false'}>
+      {/* PWA Privacy Screen Overlay (Obscures recent apps view) */}
+      {isPrivacyScreenActive && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'var(--bg-base)', zIndex: 9999999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ fontSize: '80px', animation: 'pulse 2s infinite' }}>🛡️</div>
+        </div>
+      )}
+
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
         <div className="mobile-menu-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>

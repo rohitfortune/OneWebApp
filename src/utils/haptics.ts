@@ -1,19 +1,16 @@
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+
 export const triggerHapticLight = async () => {
   try {
-    if (navigator.vibrate) {
-      navigator.vibrate(10);
-    }
+    await Haptics.impact({ style: ImpactStyle.Light });
   } catch (e) {
-    // Ignore errors on devices that do not support haptics
     console.warn('Haptics failed', e);
   }
 };
 
 export const triggerHapticMedium = async () => {
   try {
-    if (navigator.vibrate) {
-      navigator.vibrate(30);
-    }
+    await Haptics.impact({ style: ImpactStyle.Medium });
   } catch (e) {
     // Ignore
   }
@@ -21,9 +18,7 @@ export const triggerHapticMedium = async () => {
 
 export const triggerHapticError = async () => {
   try {
-    if (navigator.vibrate) {
-      navigator.vibrate([30, 50, 30]);
-    }
+    await Haptics.notification({ type: NotificationType.Error });
   } catch (e) {
     // Ignore
   }

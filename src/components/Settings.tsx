@@ -52,7 +52,7 @@ function OneDriveConnectButton() {
 
   const handleLogin = async () => {
     try {
-      await instance.loginRedirect({ scopes: ['Files.ReadWrite.All'] });
+      await instance.loginRedirect({ scopes: ['Files.ReadWrite.All', 'Files.ReadWrite.AppFolder'] });
     } catch(e) {
       console.error(e);
     }

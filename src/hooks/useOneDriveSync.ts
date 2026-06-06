@@ -77,20 +77,21 @@ export function useOneDriveSync() {
   const { instance, accounts } = useMsal();
 
   const acquireToken = async () => {
+    const scopes = ['Files.ReadWrite.All', 'Files.ReadWrite.AppFolder'];
     if (accounts.length === 0) {
-      const res = await instance.loginPopup({ scopes: ['Files.ReadWrite.AppFolder'] });
-      return res.accessToken;
+      await instance.loginRedirect({ scopes });
+      throw new Error("Redirecting to login...");
     }
     try {
       const res = await instance.acquireTokenSilent({
-        scopes: ['Files.ReadWrite.AppFolder'],
+        scopes,
         account: accounts[0]
       });
       return res.accessToken;
     } catch (e) {
-      console.warn("Silent token acquisition failed, popping up...", e);
-      const res = await instance.loginPopup({ scopes: ['Files.ReadWrite.AppFolder'] });
-      return res.accessToken;
+      console.warn("Silent token acquisition failed, redirecting...", e);
+      await instance.loginRedirect({ scopes });
+      throw new Error("Redirecting to login...");
     }
   };
 

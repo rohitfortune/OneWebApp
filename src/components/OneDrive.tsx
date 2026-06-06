@@ -597,7 +597,7 @@ function OneDriveAuthWrapper({ onToken }: { onToken: (token: string) => void }) 
     // If we already have an active account session, silently acquire token
     if (accounts.length > 0) {
       instance.acquireTokenSilent({
-        scopes: ['Files.ReadWrite.All'],
+        scopes: ['Files.ReadWrite.All', 'Files.ReadWrite.AppFolder'],
         account: accounts[0]
       }).then((response) => {
         if (response && response.accessToken) onToken(response.accessToken);
@@ -607,7 +607,7 @@ function OneDriveAuthWrapper({ onToken }: { onToken: (token: string) => void }) 
 
   const handleLogin = async () => {
     try {
-      await instance.loginRedirect({ scopes: ['Files.ReadWrite.All'] });
+      await instance.loginRedirect({ scopes: ['Files.ReadWrite.All', 'Files.ReadWrite.AppFolder'] });
     } catch (e: any) {
       console.error(e);
       alert('Login Failed: ' + (e?.message || 'Unknown error'));

@@ -19,13 +19,17 @@ const msalConfig = {
 const msalInstance = new PublicClientApplication(msalConfig);
 
 msalInstance.initialize().then(() => {
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <MsalProvider instance={msalInstance}>
-        <SyncProvider>
-          <App />
-        </SyncProvider>
-      </MsalProvider>
-    </StrictMode>,
-  )
+  msalInstance.handleRedirectPromise().then(() => {
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <MsalProvider instance={msalInstance}>
+          <SyncProvider>
+            <App />
+          </SyncProvider>
+        </MsalProvider>
+      </StrictMode>,
+    )
+  }).catch(e => {
+    console.error("MSAL redirect error", e);
+  });
 });

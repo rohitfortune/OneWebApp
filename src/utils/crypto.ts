@@ -130,34 +130,24 @@ export async function getEncryptionKeyForBackup(silent: boolean = false): Promis
   
   if (!saltRec || !verifierRec) return null;
 
-  let key: CryptoKey | null = null;
-  let authenticated = false;
-
-  const bioCredRec = await db.settings.get('vault_biometric_credential');
-  if (bioCredRec) {
+  // 1. If we have the session key in memory, use it directly! No need to ask for password again.
+  const storedKey = sessionStorage.getItem('vault_unlocked_session_key');
+  if (storedKey) {
     try {
-      const success = await verifyLocalBiometrics(bioCredRec.value);
-      if (success) {
-        const storedKey = sessionStorage.getItem('vault_unlocked_session_key');
-        if (storedKey) {
-          const decoded = new Uint8Array(base64ToArrayBuffer(storedKey));
-          key = await window.crypto.subtle.importKey(
-            'raw',
-            decoded,
-            'AES-GCM',
-            false,
-            ['encrypt', 'decrypt']
-          );
-          authenticated = true;
-        }
-      }
+      const decoded = new Uint8Array(base64ToArrayBuffer(storedKey));
+      return await window.crypto.subtle.importKey(
+        'raw',
+        decoded,
+        'AES-GCM',
+        false,
+        ['encrypt', 'decrypt']
+      );
     } catch (e) {
       console.error(e);
     }
   }
 
-  if (authenticated && key) return key;
-  
+  // 2. If it's a silent background sync and we don't have the key, abort quietly.
   if (silent) return null;
 
   const pwd = window.prompt("Enter Master Password to authorize this cloud sync action:");

@@ -76,11 +76,12 @@ export function useOneDriveSync() {
   const [syncStatus, setSyncStatus] = useState<string>('');
   const { instance, accounts } = useMsal();
 
-  const acquireToken = async () => {
+  const acquireToken = async (silent: boolean = false) => {
     const scopes = ['Files.ReadWrite.All', 'Files.ReadWrite.AppFolder'];
     if (accounts.length === 0) {
-      await instance.loginRedirect({ scopes });
-      throw new Error("Redirecting to login...");
+      if (silent) throw new Error("Silent sync aborted: not logged in.");
+      const res = await instance.loginPopup({ scopes });
+      return res.accessToken;
     }
     try {
       const res = await instance.acquireTokenSilent({
@@ -89,9 +90,18 @@ export function useOneDriveSync() {
       });
       return res.accessToken;
     } catch (e) {
-      console.warn("Silent token acquisition failed, redirecting...", e);
-      await instance.loginRedirect({ scopes });
-      throw new Error("Redirecting to login...");
+      if (silent) throw new Error("Silent token acquisition failed.");
+      console.warn("Silent token acquisition failed, using popup...", e);
+      try {
+        const res = await instance.acquireTokenPopup({
+          scopes,
+          account: accounts[0]
+        });
+        return res.accessToken;
+      } catch (popupErr) {
+        console.error("Popup token acquisition failed", popupErr);
+        throw new Error("Failed to acquire token. Please log in again.");
+      }
     }
   };
 
@@ -104,7 +114,7 @@ export function useOneDriveSync() {
     setSyncStatus('Starting Sync...');
 
     try {
-      const token = await acquireToken();
+      const token = await acquireToken(silent);
 
       setSyncStatus('Checking cloud metadata...');
       let cloudSalt: string | null = null;

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { db } from '../db/db';
-import { getEncryptionKeyForBackup, encryptPayload, decryptPayload } from '../utils/crypto';
+import { getEncryptionKeyForBackup, encryptPayload, decryptPayload, deriveMasterKey, base64ToArrayBuffer, arrayBufferToBase64 } from '../utils/crypto';
 import { useMsal } from '@azure/msal-react';
 
 // Helper to merge collections with ++id primary keys
@@ -105,13 +105,105 @@ export function useOneDriveSync() {
 
     try {
       const token = await acquireToken();
-      const key = await getEncryptionKeyForBackup(silent);
-      if (!key) {
-        if (!silent) alert('Sync failed: Could not unlock vault encryption key.');
+
+      setSyncStatus('Checking cloud metadata...');
+      let cloudSalt: string | null = null;
+      let cloudVerifier: string | null = null;
+      
+      try {
+        const metaRes = await fetch('https://graph.microsoft.com/v1.0/me/drive/special/approot:/database_metadata.json:/content', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (metaRes.ok) {
+          const meta = await metaRes.json();
+          cloudSalt = meta.salt;
+          cloudVerifier = meta.verifier;
+        }
+      } catch (e) {
+        console.warn('No cloud metadata found or error fetching', e);
+      }
+
+      let localSaltRec = await db.settings.get('vault_salt');
+      let localVerifierRec = await db.settings.get('vault_verifier');
+      let keyToUse: CryptoKey | null = null;
+
+      if (cloudSalt && cloudVerifier && (!localSaltRec || localSaltRec.value !== cloudSalt)) {
+        if (!silent) {
+          const pwd = window.prompt("Cloud backup found. Enter your Master Password to unlock and sync:");
+          if (!pwd) {
+            setIsSyncing(false);
+            setSyncStatus('');
+            return;
+          }
+          try {
+            const cloudSaltBytes = new Uint8Array(base64ToArrayBuffer(cloudSalt));
+            const testKey = await deriveMasterKey(pwd, cloudSaltBytes);
+            const decVerifier = await decryptPayload(cloudVerifier, testKey);
+            
+            if (decVerifier === 'VALID_VAULT_KEY') {
+              keyToUse = testKey;
+              
+              if (localSaltRec && localVerifierRec) {
+                try {
+                  const localSaltBytes = new Uint8Array(base64ToArrayBuffer(localSaltRec.value));
+                  const localKey = await deriveMasterKey(pwd, localSaltBytes);
+                  const localDec = await decryptPayload(localVerifierRec.value, localKey);
+                  if (localDec === 'VALID_VAULT_KEY') {
+                    const passwords = await db.passwords.toArray();
+                    for (const p of passwords) {
+                      const decryptedStr = await decryptPayload(p.encryptedData, localKey);
+                      const reEncrypted = await encryptPayload(decryptedStr, testKey);
+                      await db.passwords.update(p.uuid, { encryptedData: reEncrypted });
+                    }
+                    const cards = await db.creditCards.toArray();
+                    for (const c of cards) {
+                      const decryptedStr = await decryptPayload(c.encryptedData, localKey);
+                      const reEncrypted = await encryptPayload(decryptedStr, testKey);
+                      await db.creditCards.update(c.uuid, { encryptedData: reEncrypted });
+                    }
+                  }
+                } catch (reEncryptErr) {
+                  console.warn('Failed to re-encrypt local items.', reEncryptErr);
+                }
+              }
+
+              await db.settings.put({ key: 'vault_salt', value: cloudSalt });
+              await db.settings.put({ key: 'vault_verifier', value: cloudVerifier });
+              
+              try {
+                const rawBytes = await window.crypto.subtle.exportKey('raw', testKey);
+                sessionStorage.setItem('vault_unlocked_session_key', arrayBufferToBase64(rawBytes));
+              } catch (e) {}
+              
+            } else {
+              alert("Incorrect Master Password for the cloud backup.");
+              setIsSyncing(false);
+              setSyncStatus('');
+              return;
+            }
+          } catch (e) {
+            alert("Incorrect Master Password for the cloud backup.");
+            setIsSyncing(false);
+            setSyncStatus('');
+            return;
+          }
+        } else {
+          return;
+        }
+      }
+
+      if (!keyToUse) {
+        keyToUse = await getEncryptionKeyForBackup(silent);
+      }
+
+      if (!keyToUse) {
+        if (!silent) alert('Sync failed: Could not unlock vault encryption key. Please setup a Master Password in Settings first.');
         setIsSyncing(false);
         setSyncStatus('');
         return;
       }
+
+      const key = keyToUse;
 
       setSyncStatus('Fetching cloud state...');
       let cloudData: any = { notes: [], passwords: [], cards: [], localFolders: [], fileMetadata: [] };
@@ -219,6 +311,17 @@ export function useOneDriveSync() {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'text/plain' },
         body: dbBlob
       });
+
+      const currentSaltRec = await db.settings.get('vault_salt');
+      const currentVerifierRec = await db.settings.get('vault_verifier');
+      if (currentSaltRec && currentVerifierRec) {
+         const metaBlob = new Blob([JSON.stringify({ salt: currentSaltRec.value, verifier: currentVerifierRec.value })], { type: 'application/json' });
+         await fetch('https://graph.microsoft.com/v1.0/me/drive/special/approot:/database_metadata.json:/content', {
+           method: 'PUT',
+           headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+           body: metaBlob
+         });
+      }
 
       // Incremental File Sync (Blobs)
       setSyncStatus('Checking file attachments...');

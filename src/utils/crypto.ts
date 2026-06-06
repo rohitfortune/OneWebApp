@@ -2,7 +2,7 @@
  * Zero-Knowledge Cryptography helpers using the native Web Cryptography API.
  */
 import { db } from '../db/db';
-import { verifyLocalBiometrics } from './biometrics';
+
 
 // Helper: Convert string to Uint8Array
 export function stringToBytes(str: string): Uint8Array {

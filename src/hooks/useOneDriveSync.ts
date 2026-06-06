@@ -78,7 +78,8 @@ export function useOneDriveSync() {
 
   const acquireToken = async (silent: boolean = false) => {
     const scopes = ['Files.ReadWrite.All', 'Files.ReadWrite.AppFolder'];
-    if (accounts.length === 0) {
+    const currentAccounts = instance.getAllAccounts();
+    if (currentAccounts.length === 0) {
       if (silent) throw new Error("Silent sync aborted: not logged in.");
       const res = await instance.loginPopup({ scopes });
       return res.accessToken;
@@ -86,7 +87,7 @@ export function useOneDriveSync() {
     try {
       const res = await instance.acquireTokenSilent({
         scopes,
-        account: accounts[0]
+        account: currentAccounts[0]
       });
       return res.accessToken;
     } catch (e) {
@@ -95,7 +96,7 @@ export function useOneDriveSync() {
       try {
         const res = await instance.acquireTokenPopup({
           scopes,
-          account: accounts[0]
+          account: currentAccounts[0]
         });
         return res.accessToken;
       } catch (popupErr) {
@@ -106,8 +107,9 @@ export function useOneDriveSync() {
   };
 
   const runOneDriveSync = useCallback(async (silent = false) => {
+    const currentAccounts = instance.getAllAccounts();
     // If trying to sync silently in the background but we aren't logged in, abort immediately.
-    if (silent && accounts.length === 0) return;
+    if (silent && currentAccounts.length === 0) return;
     
     if (isSyncing) return;
     setIsSyncing(true);

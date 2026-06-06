@@ -70,6 +70,7 @@ function OneDriveConnectButton() {
 }
 
 export default function Settings() {
+  const { instance } = useMsal();
   const [hasPassword, setHasPassword] = useState(false);
   const [isBioAvailable, setIsBioAvailable] = useState(false);
   const [isBioEnrolled, setIsBioEnrolled] = useState(false);
@@ -383,6 +384,41 @@ export default function Settings() {
     }
   };
 
+  const handleWipeCloudVault = async () => {
+    if (!window.confirm('☢️ WARNING: This will permanently delete your encrypted database backup files (database_sync.enc and database_metadata.json) from your OneDrive. This cannot be undone. Proceed?')) {
+      return;
+    }
+    
+    try {
+      const accounts = instance.getAllAccounts();
+      if (accounts.length === 0) {
+        setModalState({ type: 'error', message: 'You must connect Microsoft OneDrive first.' });
+        return;
+      }
+      
+      const scopes = ['Files.ReadWrite.All', 'Files.ReadWrite.AppFolder'];
+      let token = '';
+      try {
+        const res = await instance.acquireTokenSilent({ scopes, account: accounts[0] });
+        token = res.accessToken;
+      } catch (e) {
+        const res = await instance.acquireTokenPopup({ scopes, account: accounts[0] });
+        token = res.accessToken;
+      }
+      
+      setModalState({ type: 'success', message: 'Wiping cloud vault... Please wait.' });
+      
+      await fetch(`https://graph.microsoft.com/v1.0/me/drive/special/approot:/database_sync.enc`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` }});
+      await fetch(`https://graph.microsoft.com/v1.0/me/drive/special/approot:/database_metadata.json`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` }});
+      
+      setModalState({ type: 'success', message: 'Cloud vault successfully deleted from OneDrive. You can now start fresh by creating a new Master Password and clicking Sync.' });
+      
+    } catch (e: any) {
+      console.error(e);
+      setModalState({ type: 'error', message: `Failed to wipe cloud vault: ${e.message}` });
+    }
+  };
+
   function base64ToArrayBuffer(base64: string): ArrayBuffer {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
@@ -561,11 +597,19 @@ export default function Settings() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', border: '1px solid var(--border)', borderRadius: 'var(--border-radius-lg)', backgroundColor: 'rgba(239, 68, 68, 0.05)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
         <h2 style={{ fontFamily: 'var(--font-heading)', color: '#ef4444' }}>☢️ System Reset</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-          Deletes all databases, files, settings, and encryption keys from this browser session. Ensure you have backups.
+          Deletes all databases, files, settings, and encryption keys from this browser session or cloud backup. Ensure you have backups.
         </p>
-        <button className="btn-primary" onClick={handleWipeDatabase} style={{ backgroundColor: '#ef4444', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)', alignSelf: 'flex-start' }}>
-          Wipe Local Database
-        </button>
+        <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+          <button className="btn-primary" onClick={handleWipeDatabase} style={{ backgroundColor: '#ef4444', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)' }}>
+            Wipe Local Database
+          </button>
+          
+          {(import.meta.env.VITE_MICROSOFT_CLIENT_ID) && (
+            <button className="btn-primary" onClick={handleWipeCloudVault} style={{ backgroundColor: '#ef4444', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)' }}>
+              Wipe OneDrive Cloud Vault
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Central Success Modal */}

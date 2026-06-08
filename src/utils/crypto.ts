@@ -2,7 +2,7 @@
  * Zero-Knowledge Cryptography helpers using the native Web Cryptography API.
  */
 import { db } from '../db/db';
-
+import { globalAlert, globalPrompt } from './dialogs';
 
 // Helper: Convert string to Uint8Array
 export function stringToBytes(str: string): Uint8Array {
@@ -150,7 +150,7 @@ export async function getEncryptionKeyForBackup(silent: boolean = false): Promis
   // 2. If it's a silent background sync and we don't have the key, abort quietly.
   if (silent) return null;
 
-  const pwd = window.prompt("Enter Master Password to authorize this cloud sync action:");
+  const pwd = await globalPrompt("Enter Master Password to authorize this cloud sync action:", "Authorization Required");
   if (!pwd) return null;
 
   try {
@@ -164,6 +164,6 @@ export async function getEncryptionKeyForBackup(silent: boolean = false): Promis
     console.error(e);
   }
   
-  alert('Invalid Master Password');
+  await globalAlert('Invalid Master Password', 'Authentication Failed');
   return null;
 }

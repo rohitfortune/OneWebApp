@@ -12,7 +12,7 @@ import { deriveMasterKey, decryptPayload, base64ToArrayBuffer } from './utils/cr
 import { verifyLocalBiometrics } from './utils/biometrics';
 import { triggerHapticLight } from './utils/haptics';
 import { useSyncContext } from './contexts/SyncContext';
-
+import GlobalDialogs from './components/GlobalDialogs';
 
 type ActiveTab = 'notes' | 'passwords' | 'cards' | 'files' | 'settings' | 'gdrive' | 'onedrive';
 
@@ -204,6 +204,8 @@ export default function App() {
 
   return (
     <div className="app-container" data-vault-theme={isVaultThemeActive ? 'true' : 'false'}>
+      <GlobalDialogs />
+      
       {/* PWA Privacy Screen Overlay (Obscures recent apps view) */}
       {isPrivacyScreenActive && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'var(--bg-base)', zIndex: 9999999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>

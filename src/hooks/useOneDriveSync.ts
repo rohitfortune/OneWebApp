@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { db } from '../db/db';
 import { getEncryptionKeyForBackup, encryptPayload, decryptPayload, deriveMasterKey, base64ToArrayBuffer, arrayBufferToBase64 } from '../utils/crypto';
 import { useMsal } from '@azure/msal-react';
+import { globalAlert, globalPrompt } from '../utils/dialogs';
 
 // Helper to merge collections with ++id primary keys
 async function syncIdCollection(localItems: any[], cloudItems: any[], dbTable: any) {
@@ -141,7 +142,7 @@ export function useOneDriveSync() {
 
       if (cloudSalt && cloudVerifier && (!localSaltRec || localSaltRec.value !== cloudSalt)) {
         if (!silent) {
-          const pwd = window.prompt("Cloud backup found. Enter your Master Password to unlock and sync:");
+          const pwd = await globalPrompt("Cloud backup found. Enter your Master Password to unlock and sync:");
           if (!pwd) {
             setIsSyncing(false);
             setSyncStatus('');
@@ -188,13 +189,13 @@ export function useOneDriveSync() {
               } catch (e) {}
               
             } else {
-              alert("Incorrect Master Password for the cloud backup.");
+              await globalAlert("Incorrect Master Password for the cloud backup.", "Unlock Failed");
               setIsSyncing(false);
               setSyncStatus('');
               return;
             }
           } catch (e) {
-            alert("Incorrect Master Password for the cloud backup.");
+            await globalAlert("Incorrect Master Password for the cloud backup.", "Unlock Failed");
             setIsSyncing(false);
             setSyncStatus('');
             return;
@@ -209,7 +210,7 @@ export function useOneDriveSync() {
       }
 
       if (!keyToUse) {
-        if (!silent) alert('Sync failed: Could not unlock vault encryption key. Please setup a Master Password in Settings first.');
+        if (!silent) await globalAlert('Sync failed: Could not unlock vault encryption key. Please setup a Master Password in Settings first.', 'Sync Failed');
         setIsSyncing(false);
         setSyncStatus('');
         return;
@@ -244,7 +245,7 @@ export function useOneDriveSync() {
       } catch (e: any) {
         console.error('Cloud state fetch/decryption failed:', e);
         if (!silent) {
-          alert('Sync aborted: The cloud backup could not be read. It is likely encrypted with a different Master Password. Please ensure all devices use the exact same Master Password.');
+          await globalAlert('The cloud backup could not be read. It is likely encrypted with a different Master Password. Please ensure all devices use the exact same Master Password.', 'Sync Aborted');
         }
         setIsSyncing(false);
         setSyncStatus('');
@@ -398,10 +399,10 @@ export function useOneDriveSync() {
       }
 
       setSyncStatus('');
-      if (!silent) alert('Sync Complete!');
+      if (!silent) await globalAlert('Files successfully synced with OneDrive.', 'Sync Complete');
     } catch (error: any) {
       console.error('Sync failed:', error);
-      if (!silent) alert(`Sync failed: ${error.message}`);
+      if (!silent) await globalAlert(`Sync failed: ${error.message}`, 'Sync Error');
       setSyncStatus('');
     } finally {
       setIsSyncing(false);

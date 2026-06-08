@@ -20,6 +20,9 @@ export default function Files() {
   const [isZipping, setIsZipping] = useState(false);
   const [readyToShareFiles, setReadyToShareFiles] = useState<File[] | null>(null);
   
+  // File Preview State
+  const [previewFile, setPreviewFile] = useState<FileRecord | null>(null);
+  
   // Custom Prompts
   type DialogState = {
     title: string;
@@ -168,10 +171,16 @@ export default function Files() {
     setShowMenu(false);
   };
 
-  const handleFileDownload = async (file: FileRecord) => {
+  const handleFileClick = async (file: FileRecord) => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     if (selectionMode) {
       toggleSelection(`file-${file.id}`);
+      return;
+    }
+    
+    // Check if we can preview it inline
+    if (file.mimeType.startsWith('image/') || file.mimeType === 'application/pdf') {
+      setPreviewFile(file);
       return;
     }
     
@@ -728,7 +737,7 @@ export default function Files() {
           return (
             <div
               key={`file-${file.id}`}
-              onClick={() => handleFileDownload(file)}
+              onClick={() => handleFileClick(file)}
               onPointerDown={() => handlePointerDown(`file-${file.id}`)}
               onPointerUp={handlePointerUp}
               onPointerLeave={handlePointerUp}

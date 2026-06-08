@@ -834,6 +834,62 @@ export default function Files() {
         )}
       </div>
 
+      {/* Inline File Preview Modal */}
+      {previewFile && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.95)', zIndex: 999999, display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.2s ease-out' }}>
+          <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#000', color: '#fff', borderBottom: '1px solid #333' }}>
+            <h3 style={{ margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%', fontFamily: 'var(--font-heading)', fontSize: '16px' }}>
+              {previewFile.displayName}
+            </h3>
+            <div style={{ display: 'flex', gap: '20px' }}>
+              <button 
+                onClick={() => {
+                  const url = URL.createObjectURL(previewFile.blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = previewFile.displayName;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }} 
+                style={{ background: 'none', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer', padding: 0 }}
+                title="Download"
+              >
+                ⬇️
+              </button>
+              <button 
+                onClick={() => setPreviewFile(null)} 
+                style={{ background: 'none', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer', padding: 0 }}
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          <div style={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px', overflow: 'hidden' }}>
+            {previewFile.mimeType.startsWith('image/') ? (
+              <img src={URL.createObjectURL(previewFile.blob)} alt={previewFile.displayName} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }} />
+            ) : (
+              <object data={URL.createObjectURL(previewFile.blob)} type="application/pdf" style={{ width: '100%', height: '100%', border: 'none', background: '#fff', borderRadius: '4px' }}>
+                <div style={{ color: '#000', textAlign: 'center', padding: '40px' }}>
+                  <span style={{ fontSize: '48px', display: 'block', marginBottom: '16px' }}>📄</span>
+                  <p>Your browser does not support inline PDF preview.</p>
+                  <button className="btn-primary" onClick={() => {
+                    const url = URL.createObjectURL(previewFile.blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = previewFile.displayName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }} style={{ marginTop: '16px' }}>Download PDF Instead</button>
+                </div>
+              </object>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Custom Dialog Modal */}
       {dialog && (
         <div style={{

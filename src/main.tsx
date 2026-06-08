@@ -23,15 +23,30 @@ const isPopup = window.opener && window.opener !== window;
 const hasAuthHash = window.location.hash.includes('code=') || window.location.hash.includes('state=') || window.location.hash.includes('error=');
 
 if ((isIframe || isPopup) && hasAuthHash) {
-  // If we are in a popup or iframe returning from MSAL authentication,
-  // we must initialize MSAL and let it process the hash to send a postMessage 
-  // back to the parent window. We DO NOT render the React app here to prevent 
-  // MsalProvider from trying to process the same hash and causing a race condition.
   document.getElementById('root')!.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;color:#888;">Completing authentication...</div>';
   
+  // Robust fallback: Manually send the hash to the parent window to ensure MSAL receives it.
+  // This bypasses any MSAL internal polling issues or initialization race conditions.
+  try {
+    const target = isPopup ? window.opener : window.parent;
+    if (target && target !== window) {
+      const hash = window.location.hash;
+      const origin = window.location.origin;
+      // MSAL v2 standard string format
+      target.postMessage(hash, origin);
+      // MSAL v3 object format
+      target.postMessage({ type: "msal:popup:response", payload: hash }, origin);
+    }
+  } catch (e) {
+    console.error("Failed to post message to parent:", e);
+  }
+
+  // Also initialize MSAL normally as a fallback mechanism
   msalInstance.initialize().then(() => {
-    msalInstance.handleRedirectPromise().catch(console.error);
-  });
+    return msalInstance.handleRedirectPromise();
+  }).then(() => {
+    if (isPopup) window.close();
+  }).catch(console.error);
 } else {
   msalInstance.initialize().then(() => {
     msalInstance.handleRedirectPromise().then(() => {

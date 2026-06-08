@@ -19,37 +19,57 @@ const msalConfig = {
 const msalInstance = new PublicClientApplication(msalConfig);
 
 const isIframe = window !== window.parent;
-const isPopup = window.opener && window.opener !== window;
+let isMsalPopup = !!window.opener && window.opener !== window;
 const hasAuthHash = window.location.hash.includes('code=') || window.location.hash.includes('state=') || window.location.hash.includes('error=');
 
-if ((isIframe || isPopup) && hasAuthHash) {
-  document.getElementById('root')!.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;color:#888;">Completing authentication...</div>';
-  
-  // MSAL v3 relies on BroadcastChannel for popup communication. However, initializing MSAL
-  // in the popup when cacheLocation is localStorage clears the parent's transaction cache,
-  // causing a timeout. We manually replicate MSAL's BroadcastChannel message to fix this safely.
+let decodedState: any = null;
+
+if (hasAuthHash) {
   try {
     const hashContent = window.location.hash.substring(1);
     const params = new URLSearchParams(hashContent);
     const state = params.get("state");
     if (state) {
-      // Decode Base64URL MSAL state (handle optional user state separated by |)
       const base64State = state.split('|')[0];
       const base64 = base64State.replace(/-/g, '+').replace(/_/g, '/');
       const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+      decodedState = JSON.parse(atob(padded));
       
-      const decodedState = JSON.parse(atob(padded));
-      // MSAL state JSON usually has the ID at the root, or nested under libraryState
-      const id = decodedState.id || decodedState.libraryState?.id;
-      if (id) {
-        const channel = new BroadcastChannel(id);
-        channel.postMessage({ v: 1, payload: hashContent });
-        channel.close();
+      // Crucial for Mobile PWAs: window.opener is often null in custom tabs,
+      // but the state meta explicitly tells us it's a popup flow!
+      if (decodedState?.meta?.interactionType === "popup") {
+        isMsalPopup = true;
       }
+    }
+  } catch (e) {
+    console.error("Failed to decode MSAL state", e);
+  }
+}
+
+if ((isIframe || isMsalPopup) && hasAuthHash) {
+  // Show a success message in case the mobile browser prevents window.close()
+  document.getElementById('root')!.innerHTML = `
+    <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;color:var(--text-primary);background:var(--bg-base);text-align:center;padding:20px;">
+      <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
+      <h2 style="margin:0 0 8px 0;font-family:var(--font-heading);">Authentication Complete</h2>
+      <p style="color:var(--text-secondary);margin:0;">You can now safely close this screen and return to the app.</p>
+    </div>
+  `;
+  
+  try {
+    const hashContent = window.location.hash.substring(1);
+    const id = decodedState?.id || decodedState?.libraryState?.id;
+    if (id) {
+      const channel = new BroadcastChannel(id);
+      channel.postMessage({ v: 1, payload: hashContent });
+      channel.close();
     }
   } catch (e) {
     console.error("Failed to broadcast MSAL response", e);
   }
+  
+  // Attempt to close automatically, though mobile Custom Tabs often ignore this
+  setTimeout(() => window.close(), 500);
 } else {
   msalInstance.initialize().then(() => {
     msalInstance.handleRedirectPromise().then(() => {

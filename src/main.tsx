@@ -24,11 +24,14 @@ const hasAuthHash = window.location.hash.includes('code=') || window.location.ha
 
 if ((isIframe || isPopup) && hasAuthHash) {
   // If we are in a popup or iframe returning from MSAL authentication,
-  // do NOT initialize MSAL or render the React app. MSAL in the parent window 
-  // will poll this window's URL for the authorization hash and close it automatically.
-  // Rendering the app here would cause handleRedirectPromise to consume and clear the hash, 
-  // breaking the parent window's polling mechanism and causing a timeout.
+  // we must initialize MSAL and let it process the hash to send a postMessage 
+  // back to the parent window. We DO NOT render the React app here to prevent 
+  // MsalProvider from trying to process the same hash and causing a race condition.
   document.getElementById('root')!.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;color:#888;">Completing authentication...</div>';
+  
+  msalInstance.initialize().then(() => {
+    msalInstance.handleRedirectPromise().catch(console.error);
+  });
 } else {
   msalInstance.initialize().then(() => {
     msalInstance.handleRedirectPromise().then(() => {

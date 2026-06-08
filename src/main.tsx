@@ -33,8 +33,14 @@ if ((isIframe || isPopup) && hasAuthHash) {
     const params = new URLSearchParams(hashContent);
     const state = params.get("state");
     if (state) {
-      const decodedState = JSON.parse(atob(state));
-      const id = decodedState.libraryState?.id;
+      // Decode Base64URL MSAL state (handle optional user state separated by |)
+      const base64State = state.split('|')[0];
+      const base64 = base64State.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+      
+      const decodedState = JSON.parse(atob(padded));
+      // MSAL state JSON usually has the ID at the root, or nested under libraryState
+      const id = decodedState.id || decodedState.libraryState?.id;
       if (id) {
         const channel = new BroadcastChannel(id);
         channel.postMessage({ v: 1, payload: hashContent });
@@ -43,10 +49,6 @@ if ((isIframe || isPopup) && hasAuthHash) {
     }
   } catch (e) {
     console.error("Failed to broadcast MSAL response", e);
-  }
-  
-  if (isPopup) {
-    setTimeout(() => window.close(), 100);
   }
 } else {
   msalInstance.initialize().then(() => {

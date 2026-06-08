@@ -25,28 +25,29 @@ const hasAuthHash = window.location.hash.includes('code=') || window.location.ha
 if ((isIframe || isPopup) && hasAuthHash) {
   document.getElementById('root')!.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;color:#888;">Completing authentication...</div>';
   
-  // Robust fallback: Manually send the hash to the parent window to ensure MSAL receives it.
-  // This bypasses any MSAL internal polling issues or initialization race conditions.
+  // MSAL v3 relies on BroadcastChannel for popup communication. However, initializing MSAL
+  // in the popup when cacheLocation is localStorage clears the parent's transaction cache,
+  // causing a timeout. We manually replicate MSAL's BroadcastChannel message to fix this safely.
   try {
-    const target = isPopup ? window.opener : window.parent;
-    if (target && target !== window) {
-      const hash = window.location.hash;
-      const origin = window.location.origin;
-      // MSAL v2 standard string format
-      target.postMessage(hash, origin);
-      // MSAL v3 object format
-      target.postMessage({ type: "msal:popup:response", payload: hash }, origin);
+    const hashContent = window.location.hash.substring(1);
+    const params = new URLSearchParams(hashContent);
+    const state = params.get("state");
+    if (state) {
+      const decodedState = JSON.parse(atob(state));
+      const id = decodedState.libraryState?.id;
+      if (id) {
+        const channel = new BroadcastChannel(id);
+        channel.postMessage({ v: 1, payload: hashContent });
+        channel.close();
+      }
     }
   } catch (e) {
-    console.error("Failed to post message to parent:", e);
+    console.error("Failed to broadcast MSAL response", e);
   }
-
-  // Also initialize MSAL normally as a fallback mechanism
-  msalInstance.initialize().then(() => {
-    return msalInstance.handleRedirectPromise();
-  }).then(() => {
-    if (isPopup) window.close();
-  }).catch(console.error);
+  
+  if (isPopup) {
+    setTimeout(() => window.close(), 100);
+  }
 } else {
   msalInstance.initialize().then(() => {
     msalInstance.handleRedirectPromise().then(() => {
